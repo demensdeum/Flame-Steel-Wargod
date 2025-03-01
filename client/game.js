@@ -244,53 +244,54 @@ class Game {
         // Update fighters
         const fighters = state.fighters || [];
         console.log('Fighters:', fighters);
+        // Keep track of active fighters
+        const activeFighterIds = new Set();
+
         fighters.forEach(fighter => {
+            activeFighterIds.add(fighter.id);
+
             if (fighter.id === this.playerId) {
                 // Update player stats if available
                 if (fighter.health !== undefined) this.health = fighter.health;
                 if (fighter.weapon !== undefined) this.currentWeapon = fighter.weapon;
                 if (fighter.armor !== undefined) this.armor = fighter.armor;
+            } else {
+                let cube = this.fighters.get(fighter.id);
                 
-                // Update player stats only
-                this.hud.update(this.health, this.currentWeapon, this.armor, fighters.length);
-                return;
-            }
-            
-            let cube = this.fighters.get(fighter.id);
-            
-            if (!cube) {
-                // Create new fighter cube
-                const geometry = new THREE.BoxGeometry(0.8, 1.6, 0.8);
-                const material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-                cube = new THREE.Mesh(geometry, material);
-                this.scene.add(cube);
-                this.fighters.set(fighter.id, cube);
-            }
+                if (!cube) {
+                    // Create new fighter cube
+                    const geometry = new THREE.BoxGeometry(0.8, 1.6, 0.8);
+                    const material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+                    cube = new THREE.Mesh(geometry, material);
+                    this.scene.add(cube);
+                    this.fighters.set(fighter.id, cube);
+                }
 
-            // Update position - convert from server coordinates to world coordinates
-            cube.position.set(
-                (fighter.x / this.map.cellSize) - this.map.width/2 + 0.5,
-                1,
-                (fighter.z / this.map.cellSize) - this.map.height/2 + 0.5
-            );
+                // Update position - convert from server coordinates to world coordinates
+                cube.position.set(
+                    (fighter.x / this.map.cellSize) - this.map.width/2 + 0.5,
+                    1,
+                    (fighter.z / this.map.cellSize) - this.map.height/2 + 0.5
+                );
 
-            // Update rotation from rx, ry, rz
-            if (fighter.rx !== undefined && fighter.ry !== undefined && fighter.rz !== undefined) {
-                cube.rotation.set(fighter.rx, fighter.ry, fighter.rz);
+                // Update rotation from rx, ry, rz
+                if (fighter.rx !== undefined && fighter.ry !== undefined && fighter.rz !== undefined) {
+                    cube.rotation.set(fighter.rx, fighter.ry, fighter.rz);
+                }
             }
         });
 
         // Remove disconnected fighters
-        const currentIds = new Set(state.fighters.map(f => f.id));
         for (const [id, cube] of this.fighters) {
-            if (!currentIds.has(id)) {
+            if (!activeFighterIds.has(id)) {
                 this.scene.remove(cube);
                 this.fighters.delete(id);
             }
         }
         
-        // Update HUD with latest fighter count
-        this.hud.update(this.health, this.currentWeapon, this.armor, this.fighters.size);
+        // Update HUD with latest fighter count (including current player)
+        const totalFighters = activeFighterIds.size; // Count of all active fighters including player
+        this.hud.update(this.health, this.currentWeapon, this.armor, totalFighters);
     }
 
     onWindowResize() {
