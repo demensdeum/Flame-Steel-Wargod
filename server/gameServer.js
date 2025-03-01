@@ -4,6 +4,13 @@ const Viewer = require('./viewer');
 const MathUtils = require('./mathUtils');
 const TransportFactory = require('./transport/transportFactory');
 const TransportLayer = require('./transport/transportLayer');
+const CaveMapGenerator = require('./mapGenerators/caveMapGenerator');
+const RoomMapGenerator = require('./mapGenerators/roomMapGenerator');
+
+const MapGeneratorType = {
+    CAVE: 'cave',
+    ROOM: 'room'
+};
 
 class GameServer {
     constructor(port = 8080, TransportClass = TransportFactory.WebSocket, maxPlayers = 16, maxViewers = 90) {
@@ -22,6 +29,8 @@ class GameServer {
     }
 
     start() {
+        this.startNewFight(MapGeneratorType.ROOM);
+
         this.transport.onConnection((client) => {
             console.log('New client connected');
             this.handleNewConnection(client);
@@ -37,6 +46,25 @@ class GameServer {
 
         this.transport.start();
         console.log(`Game server started on port ${this.port}`);
+    }
+
+    startNewFight(generatorType = MapGeneratorType.CAVE) {
+        const generator = generatorType === MapGeneratorType.CAVE ? 
+            new CaveMapGenerator() : new RoomMapGenerator();
+        this.arena = new Area(generator.generate());
+        
+        Array.from(this.players).forEach(fighter => {
+            const spawnPoint = this.arena.getMap().getRandomSpawnPoint();
+            fighter.setPosition(spawnPoint.x, spawnPoint.y, spawnPoint.z);
+            fighter.respawn();
+        });
+
+        this.broadcastEvent({
+            type: 'newFight',
+            map: this.arena.getMap().getMapData()
+        });
+
+        this.broadcastGameState();
     }
 
     handleNewConnection(connection) {
@@ -83,6 +111,9 @@ class GameServer {
                     break;
                 case 'attack':
                     this.handleAttack(fighter, data);
+                    break;
+                case 'newFight':
+                    this.startNewFight(data.generatorType);
                     break;
             }
 
