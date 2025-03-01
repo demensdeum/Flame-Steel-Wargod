@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 import GameMap from './gameMap.js';
+import HUD from './hud.js';
 
 class Game {
     // Helper function to validate PNG data
@@ -34,6 +35,14 @@ class Game {
         this.direction = new THREE.Vector3();
         this.playerId = null;
         this.prevTime = performance.now();
+        
+        // Player stats
+        this.health = 100;
+        this.currentWeapon = 'Fists';
+        this.armor = 0;
+        
+        // Create HUD
+        this.hud = new HUD();
         // Click to start
         const blocker = document.createElement('div');
         blocker.style.position = 'fixed';
@@ -67,10 +76,12 @@ class Game {
 
         this.controls.addEventListener('lock', () => {
             blocker.style.display = 'none';
+            this.hud.show();
         });
 
         this.controls.addEventListener('unlock', () => {
             blocker.style.display = 'flex';
+            this.hud.hide();
         });
 
         this.fighters = new Map();
@@ -234,8 +245,14 @@ class Game {
         const fighters = state.fighters || [];
         console.log('Fighters:', fighters);
         fighters.forEach(fighter => {
-            // Skip rendering own fighter
             if (fighter.id === this.playerId) {
+                // Update player stats if available
+                if (fighter.health !== undefined) this.health = fighter.health;
+                if (fighter.weapon !== undefined) this.currentWeapon = fighter.weapon;
+                if (fighter.armor !== undefined) this.armor = fighter.armor;
+                
+                // Update HUD
+                this.hud.update(this.health, this.currentWeapon, this.armor);
                 return;
             }
             
