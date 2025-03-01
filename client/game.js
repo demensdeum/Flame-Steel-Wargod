@@ -74,6 +74,15 @@ class Game {
         blocker.style.webkitTapHighlightColor = 'transparent';
         blocker.style.flexDirection = 'column';
         
+        // Add cover image
+        const cover = document.createElement('img');
+        cover.src = './textures/cover.jpg';
+        cover.style.maxWidth = '30%';
+        cover.style.height = 'auto';
+        cover.style.marginBottom = '30px';
+        cover.style.borderRadius = '10px';
+        cover.style.boxShadow = '0 0 20px rgba(0,0,0,0.5)';
+        
         // Create game title and version
         const title = document.createElement('div');
         title.textContent = this.isMobile ? 'Tap to Play' : 'Click to Play';
@@ -84,6 +93,7 @@ class Game {
         version.style.fontSize = '14px';
         version.style.opacity = '0.7';
         
+        blocker.appendChild(cover);
         blocker.appendChild(title);
         blocker.appendChild(version);
         document.body.appendChild(blocker);

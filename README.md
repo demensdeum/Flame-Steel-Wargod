@@ -1,5 +1,7 @@
 # Flame Steel: Wargod
 
+![Flame Steel: Wargod](cover.jpg)
+
 🎮 A retro-style multiplayer arena shooter!
 
 ## [Play Online Demo](http://tinydemens1.vps.webdock.cloud:3000/)
