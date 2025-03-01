@@ -557,17 +557,19 @@ class Game {
             if (!this.lookActive) return;
 
             const touch = e.touches[0];
-            const screenWidth = window.innerWidth;
-            const screenHeight = window.innerHeight;
-            
-            // Calculate rotation based on screen position
-            const rotationY = ((touch.clientX - (screenWidth * 0.75)) / (screenWidth * 0.25)) * Math.PI;
-            const rotationX = ((touch.clientY - (screenHeight * 0.5)) / (screenHeight * 0.5)) * (Math.PI/2);
-            
-            // Apply rotations with clamping
-            this.camera.rotation.y = -rotationY;
-            this.camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, -rotationX));
-            
+            const deltaX = touch.clientX - this.lookStartPos.x;
+            const deltaY = touch.clientY - this.lookStartPos.y;
+
+            // Update camera rotation with higher sensitivity for mobile
+            const mobileLookSensitivity = 0.005;
+            this.camera.rotation.y -= deltaX * mobileLookSensitivity;
+            this.camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, 
+                this.camera.rotation.x - deltaY * mobileLookSensitivity
+            ));
+
+            // Update look start position for next frame
+            this.lookStartPos = { x: touch.clientX, y: touch.clientY };
+
             // Send rotation update
             this.socket.send(JSON.stringify({
                 type: 'rotate',
