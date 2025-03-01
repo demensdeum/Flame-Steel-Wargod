@@ -151,6 +151,11 @@ class Game {
         const fighters = state.fighters || [];
         console.log('Fighters:', fighters);
         fighters.forEach(fighter => {
+            // Skip rendering own fighter
+            if (fighter.id === this.playerId) {
+                return;
+            }
+            
             let cube = this.fighters.get(fighter.id);
             
             if (!cube) {
