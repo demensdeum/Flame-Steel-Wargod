@@ -572,31 +572,22 @@ class Game {
             if (!this.lookActive) return;
 
             const touch = e.touches[0];
-            const deltaX = touch.clientX - this.lookStartPos.x;
-            const deltaY = touch.clientY - this.lookStartPos.y;
-
-            // Calculate frame delta (change since last frame)
-            const frameDeltaX = deltaX - this.lastDeltaX;
-            const frameDeltaY = deltaY - this.lastDeltaY;
-
-            // Apply yaw (left/right) rotation
-            const sensitivity = 0.003;
-            this.camera.rotation.y -= frameDeltaX * sensitivity;
-
-            // Apply pitch (up/down) rotation with clamping
-            const newPitch = this.camera.rotation.x - frameDeltaY * sensitivity;
-            this.camera.rotation.x = Math.max(-Math.PI/3, Math.min(Math.PI/3, newPitch));
-
-            // Keep roll (z-axis) at 0 to prevent tilting
-            this.camera.rotation.z = 0;
-
-            // Update quaternion from euler angles
-            this.camera.quaternion.setFromEuler(this.camera.rotation);
-
-            // Store current deltas for next frame
-            this.lastDeltaX = deltaX;
-            this.lastDeltaY = deltaY;
-
+            
+            // Calculate rotation based on touch movement
+            const deltaX = (touch.clientX - this.lookStartPos.x) * 0.01;
+            const deltaY = (touch.clientY - this.lookStartPos.y) * 0.01;
+            
+            // Apply rotations with clamping
+            this.camera.rotation.order = 'YXZ'; // Important for FPS camera
+            this.camera.rotation.y -= deltaX;
+            
+            // Clamp vertical rotation
+            const newX = this.camera.rotation.x - deltaY;
+            this.camera.rotation.x = Math.max(-Math.PI/3, Math.min(Math.PI/3, newX));
+            
+            // Update start position
+            this.lookStartPos = { x: touch.clientX, y: touch.clientY };
+            
             // Send rotation update
             this.socket.send(JSON.stringify({
                 type: 'rotate',
