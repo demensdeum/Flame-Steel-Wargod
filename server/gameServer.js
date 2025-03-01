@@ -6,10 +6,12 @@ const TransportFactory = require('./transport/transportFactory');
 const TransportLayer = require('./transport/transportLayer');
 const CaveMapGenerator = require('./mapGenerators/caveMapGenerator');
 const RoomMapGenerator = require('./mapGenerators/roomMapGenerator');
+const ArenaMapGenerator = require('./mapGenerators/arenaMapGenerator');
 
 const MapGeneratorType = {
     CAVE: 'cave',
-    ROOM: 'room'
+    ROOM: 'room',
+    ARENA: 'arena'
 };
 
 class GameServer {
@@ -29,7 +31,7 @@ class GameServer {
     }
 
     start() {
-        this.startNewFight(MapGeneratorType.ROOM);
+        this.startNewFight();
 
         this.transport.onConnection((client) => {
             console.log('New client connected');
@@ -48,9 +50,20 @@ class GameServer {
         console.log(`Game server started on port ${this.port}`);
     }
 
-    startNewFight(generatorType = MapGeneratorType.CAVE) {
-        const generator = generatorType === MapGeneratorType.CAVE ? 
-            new CaveMapGenerator() : new RoomMapGenerator();
+    startNewFight(generatorType = MapGeneratorType.ARENA) {
+        let generator;
+        switch (generatorType) {
+            case MapGeneratorType.CAVE:
+                generator = new CaveMapGenerator();
+                break;
+            case MapGeneratorType.ROOM:
+                generator = new RoomMapGenerator();
+                break;
+            case MapGeneratorType.ARENA:
+            default:
+                generator = new ArenaMapGenerator();
+                break;
+        }
         this.arena = new Area(generator.generate());
         
         Array.from(this.players).forEach(fighter => {
@@ -198,7 +211,9 @@ class GameServer {
         const client = this.clients.get(connection);
         if (client) {
             if (client instanceof Fighter) {
-                this.players.delete(client);
+                // Don't remove the fighter immediately, just mark last update time
+                // Fighter will be removed after 10 seconds of no updates
+                client.lastUpdateTime = Date.now();
             } else if (client instanceof Viewer) {
                 this.viewers.delete(client);
             }
@@ -277,6 +292,19 @@ class GameServer {
 
     broadcastGameState() {
         console.log('Broadcasting game state to', this.clients.size, 'clients');
+        
+        // Check for inactive fighters (no updates in last 10 seconds)
+        const now = Date.now();
+        const inactiveFighters = Array.from(this.players).filter(fighter => 
+            now - fighter.lastUpdateTime > 10000
+        );
+        
+        // Remove inactive fighters
+        inactiveFighters.forEach(fighter => {
+            console.log(`Removing inactive fighter ${fighter.id}`);
+            this.players.delete(fighter);
+        });
+
         const gameState = {
             type: 'gameState',
             fighters: Array.from(this.players).map(fighter => ({

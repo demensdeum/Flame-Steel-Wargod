@@ -267,17 +267,15 @@ class Game {
                 this.fighters.set(fighter.id, cube);
             }
 
-            // Update position
-            const gridX = Math.floor(fighter.x / this.map.cellSize);
-            const gridY = Math.floor(fighter.z / this.map.cellSize);
+            // Update position - convert from server coordinates to world coordinates
             cube.position.set(
-                gridX - this.map.width/2 + 0.5,
+                (fighter.x / this.map.cellSize) - this.map.width/2 + 0.5,
                 1,
-                gridY - this.map.height/2 + 0.5
+                (fighter.z / this.map.cellSize) - this.map.height/2 + 0.5
             );
 
             // Update rotation
-            cube.rotation.set(fighter.rx, fighter.ry, fighter.rz);
+            cube.rotation.set(fighter.rotation.x, fighter.rotation.y, fighter.rotation.z);
         });
 
         // Remove disconnected fighters
@@ -341,12 +339,14 @@ class Game {
     onMouseMove(event) {
         if (this.controls.isLocked) {
             const rotation = new THREE.Euler().setFromQuaternion(this.camera.quaternion);
+            // Get quaternion from camera
+            const quaternion = this.camera.quaternion;
             this.socket.send(JSON.stringify({
                 type: 'rotate',
-                x: rotation.x,
-                y: rotation.y,
-                z: rotation.z,
-                w: 0
+                x: quaternion.x,
+                y: quaternion.y,
+                z: quaternion.z,
+                w: quaternion.w
             }));
         }
     }
@@ -454,11 +454,15 @@ class Game {
         
         // Send position update to server
         if (moveX !== 0 || moveZ !== 0) {
+            // Convert world coordinates to server coordinates
+            const serverX = (this.camera.position.x + this.map.width/2) * this.map.cellSize;
+            const serverZ = (this.camera.position.z + this.map.height/2) * this.map.cellSize;
+            
             this.socket.send(JSON.stringify({
                 type: 'move',
-                x: this.camera.position.x + this.map.width/2,
-                y: this.camera.position.z + this.map.height/2,
-                z: 0
+                x: serverX,
+                y: this.camera.position.y,
+                z: serverZ
             }));
         }
 

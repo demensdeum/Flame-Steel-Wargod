@@ -17,6 +17,9 @@ class Fighter extends ArenaObject {
         // Expose position and rotation directly
         this.position = { x, y, z };
         this.rotation = { x: qx, y: qy, z: qz };
+        
+        // Track last update time
+        this.lastUpdateTime = Date.now();
     }
 
     getName() {
@@ -34,11 +37,13 @@ class Fighter extends ArenaObject {
     setPosition(x, y, z) {
         super.setPosition(x, y, z);
         this.position = { x, y, z };
+        this.lastUpdateTime = Date.now();
     }
 
     setRotation(x, y, z, w) {
         super.setRotation(x, y, z, w);
         this.rotation = { x, y, z };
+        this.lastUpdateTime = Date.now();
     }
 
     equip(item) {
