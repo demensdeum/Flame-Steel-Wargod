@@ -80,44 +80,39 @@ class CaveMapGenerator {
                 if (grid[y][x] === 1) {
                     map.setWall(x, y);
                 } else {
-                    // Check if it's a good spawn point (not too close to walls)
-                    let isGoodSpawn = true;
-                    
-                    // Check a larger area around the potential spawn point
-                    for (let dy = -2; dy <= 2; dy++) {
-                        for (let dx = -2; dx <= 2; dx++) {
-                            const nx = x + dx;
-                            const ny = y + dy;
-                            if (nx >= 0 && nx < this.width && ny >= 0 && ny < this.height) {
-                                if (grid[ny][nx] === 1) {
-                                    // If it's too close to a wall, not a good spawn point
-                                    isGoodSpawn = false;
-                                    break;
-                                }
-                            }
-                        }
-                        if (!isGoodSpawn) break;
-                    }
-                    
-                    // Additional check: ensure there's enough open space
-                    if (isGoodSpawn) {
-                        let openSpaceCount = 0;
-                        for (let dy = -2; dy <= 2; dy++) {
-                            for (let dx = -2; dx <= 2; dx++) {
+                    // Only consider central area for spawn points (avoid edges)
+                    if (x > 5 && x < this.width - 5 && y > 5 && y < this.height - 5) {
+                        let isGoodSpawn = true;
+                        let wallCount = 0;
+                        
+                        // Check a 5x5 area around the potential spawn point
+                        for (let dy = -2; dy <= 2 && isGoodSpawn; dy++) {
+                            for (let dx = -2; dx <= 2 && isGoodSpawn; dx++) {
                                 const nx = x + dx;
                                 const ny = y + dy;
-                                if (nx >= 0 && nx < this.width && ny >= 0 && ny < this.height && grid[ny][nx] === 0) {
-                                    openSpaceCount++;
+                                if (nx >= 0 && nx < this.width && ny >= 0 && ny < this.height) {
+                                    if (grid[ny][nx] === 1) {
+                                        wallCount++;
+                                        // If there's a wall in immediate vicinity (3x3), reject
+                                        if (Math.abs(dx) <= 1 && Math.abs(dy) <= 1) {
+                                            isGoodSpawn = false;
+                                        }
+                                    }
                                 }
                             }
                         }
-                        // Need at least 16 open spaces around spawn point
-                        isGoodSpawn = openSpaceCount >= 16;
-                    }
-                    
-                    map.setEmpty(x, y, isGoodSpawn);
-                    if (isGoodSpawn) {
-                        console.log('Found good spawn point at:', {x, y});
+                        
+                        // Reject if too many walls in 5x5 area
+                        if (wallCount > 8) {
+                            isGoodSpawn = false;
+                        }
+                        
+                        map.setEmpty(x, y, isGoodSpawn);
+                        if (isGoodSpawn) {
+                            console.log('Found good spawn point at:', {x, y, wallCount});
+                        }
+                    } else {
+                        map.setEmpty(x, y, false);
                     }
                 }
             }

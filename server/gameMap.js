@@ -32,10 +32,20 @@ class GameMap {
         if (this.spawnPoints.length === 0) {
             throw new Error('No available spawn points');
         }
-        console.log('Available spawn points:', this.spawnPoints);
-        console.log('Map grid:', this.grid);
         
-        const point = this.spawnPoints[Math.floor(Math.random() * this.spawnPoints.length)];
+        // Filter spawn points to only use those not too close to the edge
+        const safeSpawnPoints = this.spawnPoints.filter(point => 
+            point.x > 2 && point.x < this.width - 2 && 
+            point.y > 2 && point.y < this.height - 2
+        );
+        
+        if (safeSpawnPoints.length === 0) {
+            throw new Error('No safe spawn points available');
+        }
+        
+        console.log('Safe spawn points:', safeSpawnPoints);
+        
+        const point = safeSpawnPoints[Math.floor(Math.random() * safeSpawnPoints.length)];
         console.log('Selected spawn point:', point);
         
         // Convert grid coordinates to world coordinates

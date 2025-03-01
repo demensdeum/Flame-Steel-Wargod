@@ -128,18 +128,62 @@ class Game {
                         console.log('World coordinates:', {x: myFighter.x, z: myFighter.z});
                         console.log('Cell size:', this.map.cellSize);
                         console.log('Initial grid position:', {x: gridX, y: gridY});
+                        console.log('Grid cell value:', this.map.grid[gridY][gridX]);
                         
-                        // Verify we're not in a wall
+                        // First verify bounds
                         if (gridX >= 0 && gridX < this.map.width && gridY >= 0 && gridY < this.map.height) {
-                            const isWall = this.map.grid[gridY][gridX] === 1;
-                            console.log('Is wall?', isWall);
+                            // Check if current position is safe
+                            let isValid = true;
+                            let safeX = gridX;
+                            let safeY = gridY;
                             
-                            if (!isWall) {
-                                this.camera.position.set(myFighter.x, 1.6, myFighter.z);
+                            // First check current position
+                            if (this.map.grid[gridY][gridX] === 1) {
+                                isValid = false;
+                                // Try to find safe spot in 5x5 area
+                                let found = false;
+                                for (let r = 1; r <= 2 && !found; r++) {
+                                    for (let dy = -r; dy <= r && !found; dy++) {
+                                        for (let dx = -r; dx <= r && !found; dx++) {
+                                            const newX = gridX + dx;
+                                            const newY = gridY + dy;
+                                            if (newX >= 0 && newX < this.map.width && 
+                                                newY >= 0 && newY < this.map.height && 
+                                                this.map.grid[newY][newX] === 0) {
+                                                // Check 3x3 area around potential spot
+                                                let spotValid = true;
+                                                for (let cy = -1; cy <= 1 && spotValid; cy++) {
+                                                    for (let cx = -1; cx <= 1 && spotValid; cx++) {
+                                                        const checkX = newX + cx;
+                                                        const checkY = newY + cy;
+                                                        if (checkX >= 0 && checkX < this.map.width && 
+                                                            checkY >= 0 && checkY < this.map.height && 
+                                                            this.map.grid[checkY][checkX] === 1) {
+                                                            spotValid = false;
+                                                        }
+                                                    }
+                                                }
+                                                if (spotValid) {
+                                                    safeX = newX;
+                                                    safeY = newY;
+                                                    found = true;
+                                                    isValid = true;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            if (isValid) {
+                                // Position in world space
+                                this.camera.position.y = 1;
+                                this.camera.position.x = safeX - this.map.width/2 + 0.5;
+                                this.camera.position.z = safeY - this.map.height/2 + 0.5;
                                 console.log('Set camera position to:', this.camera.position);
                                 this.initialPositionSet = true;
                             } else {
-                                console.error('Initial position is in a wall!');
+                                console.error('Could not find safe position near:', {gridX, gridY});
                             }
                         } else {
                             console.error('Position out of bounds:', {gridX, gridY, mapSize: {width: this.map.width, height: this.map.height}});
@@ -160,12 +204,12 @@ class Game {
         // Store map data for later use
         this.map = mapData;
         
-        // Create floor - size should match world coordinates
-        const floorSize = mapData.width * mapData.cellSize;
-        const floorGeometry = new THREE.PlaneGeometry(floorSize, floorSize);
+        // Create floor using grid units
+        const floorGeometry = new THREE.PlaneGeometry(mapData.width, mapData.height);
         const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x0066cc });
         const floor = new THREE.Mesh(floorGeometry, floorMaterial);
         floor.rotation.x = -Math.PI / 2;
+        floor.position.set(0, 0, 0);
         this.scene.add(floor);
 
         // Create walls array to track walls for texture update
@@ -176,8 +220,8 @@ class Game {
             color: 0xff0000,
             side: THREE.DoubleSide
         });
-        const wallSize = mapData.cellSize * 0.8; // Make walls slightly smaller than cell
-        const wallGeometry = new THREE.BoxGeometry(wallSize, wallSize * 2, wallSize);
+        // Make walls 1 unit wide and 2 units tall
+        const wallGeometry = new THREE.BoxGeometry(1, 2, 1);
 
         // Create walls immediately with temporary material
         for (let x = 0; x < mapData.width; x++) {
@@ -185,9 +229,9 @@ class Game {
                 if (mapData.grid[y][x] === 1) {  // Wall
                     const wall = new THREE.Mesh(wallGeometry, tempMaterial);
                     wall.position.set(
-                        x * mapData.cellSize,
-                        wallSize, // Half of wall height
-                        y * mapData.cellSize
+                        x - mapData.width/2 + 0.5, // Center in cell
+                        1, // Half of wall height
+                        y - mapData.height/2 + 0.5  // Center in cell
                     );
                     this.scene.add(wall);
                     this.walls.add(wall);
@@ -246,10 +290,12 @@ class Game {
             }
 
             // Update position
+            const gridX = Math.floor(fighter.x / this.map.cellSize);
+            const gridY = Math.floor(fighter.z / this.map.cellSize);
             cube.position.set(
-                fighter.x / this.map.cellSize - (this.map.width / 2),
-                fighter.y / this.map.cellSize,
-                fighter.z / this.map.cellSize - (this.map.height / 2)
+                gridX - this.map.width/2 + 0.5,
+                1,
+                gridY - this.map.height/2 + 0.5
             );
 
             // Update rotation

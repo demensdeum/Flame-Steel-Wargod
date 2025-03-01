@@ -96,14 +96,41 @@ class GameServer {
             
             // Validate grid position
             if (gridX >= 0 && gridX < map.width && gridY >= 0 && gridY < map.height) {
+                // First check the exact spawn point
                 if (map.grid[gridY][gridX] === 0) {
-                    // Valid spawn point found
-                    console.log('Valid spawn point found:', {
-                        world: spawnPoint,
-                        grid: {x: gridX, y: gridY},
-                        cell: map.grid[gridY][gridX]
-                    });
-                    break;
+                    // Then check surrounding area
+                    let isValid = true;
+                    let wallCount = 0;
+                    
+                    for (let dy = -2; dy <= 2 && isValid; dy++) {
+                        for (let dx = -2; dx <= 2 && isValid; dx++) {
+                            const checkX = gridX + dx;
+                            const checkY = gridY + dy;
+                            if (checkX >= 0 && checkX < map.width && checkY >= 0 && checkY < map.height) {
+                                if (map.grid[checkY][checkX] === 1) {
+                                    wallCount++;
+                                    // If wall is too close (in 3x3 area), reject
+                                    if (Math.abs(dx) <= 1 && Math.abs(dy) <= 1) {
+                                        isValid = false;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Reject if too many walls nearby
+                    if (wallCount > 8) {
+                        isValid = false;
+                    }
+                    
+                    if (isValid) {
+                        console.log('Valid spawn point found:', {
+                            world: spawnPoint,
+                            grid: {x: gridX, y: gridY},
+                            wallCount: wallCount
+                        });
+                        break;
+                    }
                 }
             }
             
