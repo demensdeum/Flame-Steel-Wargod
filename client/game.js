@@ -36,6 +36,15 @@ class Game {
         this.playerId = null;
         this.prevTime = performance.now();
         
+        // Touch controls state
+        this.isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        this.moveStickActive = false;
+        this.lookStickActive = false;
+        this.moveStickStartPos = { x: 0, y: 0 };
+        this.lookStickStartPos = { x: 0, y: 0 };
+        this.moveStickOffset = { x: 0, y: 0 };
+        this.lookStickOffset = { x: 0, y: 0 };
+        
         // Player stats
         this.health = 100;
         this.currentWeapon = 'Fists';
@@ -92,10 +101,15 @@ class Game {
         this.animate();
 
         window.addEventListener('resize', () => this.onWindowResize(), false);
-        document.addEventListener('keydown', (event) => this.onKeyDown(event));
-        document.addEventListener('keyup', (event) => this.onKeyUp(event));
-        document.addEventListener('mousedown', (event) => this.onMouseDown(event));
-        document.addEventListener('mousemove', (event) => this.onMouseMove(event));
+        
+        if (this.isMobile) {
+            this.setupTouchControls();
+        } else {
+            document.addEventListener('keydown', (event) => this.onKeyDown(event));
+            document.addEventListener('keyup', (event) => this.onKeyUp(event));
+            document.addEventListener('mousedown', (event) => this.onMouseDown(event));
+            document.addEventListener('mousemove', (event) => this.onMouseMove(event));
+        }
     }
 
     setupLights() {
@@ -473,6 +487,109 @@ class Game {
         }
 
         this.prevTime = performance.now();
+    }
+
+    setupTouchControls() {
+        // Show mobile controls
+        document.getElementById('moveStick').style.display = 'block';
+        document.getElementById('lookStick').style.display = 'block';
+        document.getElementById('attackButton').style.display = 'block';
+
+        // Movement stick
+        const moveStick = document.getElementById('moveStick');
+        const moveKnob = document.getElementById('moveKnob');
+
+        moveStick.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            this.moveStickActive = true;
+            this.moveStickStartPos = { 
+                x: touch.clientX - moveKnob.offsetLeft,
+                y: touch.clientY - moveKnob.offsetTop
+            };
+        });
+
+        moveStick.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (!this.moveStickActive) return;
+
+            const touch = e.touches[0];
+            const maxOffset = 30;
+
+            this.moveStickOffset = {
+                x: Math.max(-maxOffset, Math.min(maxOffset, touch.clientX - this.moveStickStartPos.x)),
+                y: Math.max(-maxOffset, Math.min(maxOffset, touch.clientY - this.moveStickStartPos.y))
+            };
+
+            moveKnob.style.transform = `translate(${this.moveStickOffset.x}px, ${this.moveStickOffset.y}px)`;
+
+            // Update movement flags
+            this.moveForward = this.moveStickOffset.y < -10;
+            this.moveBackward = this.moveStickOffset.y > 10;
+            this.moveLeft = this.moveStickOffset.x < -10;
+            this.moveRight = this.moveStickOffset.x > 10;
+        });
+
+        moveStick.addEventListener('touchend', () => {
+            this.moveStickActive = false;
+            this.moveStickOffset = { x: 0, y: 0 };
+            moveKnob.style.transform = '';
+            this.moveForward = this.moveBackward = this.moveLeft = this.moveRight = false;
+        });
+
+        // Look stick
+        const lookStick = document.getElementById('lookStick');
+        const lookKnob = document.getElementById('lookKnob');
+        const lookSensitivity = 0.005;
+
+        lookStick.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            this.lookStickActive = true;
+            this.lookStickStartPos = { 
+                x: touch.clientX,
+                y: touch.clientY
+            };
+        });
+
+        lookStick.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (!this.lookStickActive) return;
+
+            const touch = e.touches[0];
+            const deltaX = touch.clientX - this.lookStickStartPos.x;
+            const deltaY = touch.clientY - this.lookStickStartPos.y;
+
+            // Update camera rotation
+            this.camera.rotation.y -= deltaX * lookSensitivity;
+            this.camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, 
+                this.camera.rotation.x - deltaY * lookSensitivity
+            ));
+
+            this.lookStickStartPos = { x: touch.clientX, y: touch.clientY };
+
+            // Send rotation update
+            this.socket.send(JSON.stringify({
+                type: 'rotate',
+                x: this.camera.quaternion.x,
+                y: this.camera.quaternion.y,
+                z: this.camera.quaternion.z,
+                w: this.camera.quaternion.w
+            }));
+        });
+
+        lookStick.addEventListener('touchend', () => {
+            this.lookStickActive = false;
+        });
+
+        // Attack button
+        const attackButton = document.getElementById('attackButton');
+        attackButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            this.socket.send(JSON.stringify({
+                type: 'attack'
+            }));
+        });
     }
 
     animate() {

@@ -2,9 +2,66 @@
 <html>
 <head>
     <title>Flame Steel: Wargod</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
-        body { margin: 0; }
+        body { 
+            margin: 0; 
+            touch-action: none; 
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
         canvas { display: block; }
+        
+        #touchControls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            z-index: 1000;
+        }
+        
+        #moveStick, #lookStick {
+            position: fixed;
+            bottom: 80px;
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 60px;
+            z-index: 1000;
+            display: none;
+        }
+        
+        #moveStick {
+            left: 40px;
+        }
+        
+        #lookStick {
+            right: 40px;
+        }
+        
+        #moveKnob, #lookKnob {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 30px;
+            top: 30px;
+            left: 30px;
+        }
+        
+        #attackButton {
+            position: fixed;
+            right: 40px;
+            bottom: 220px;
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 0, 0, 0.3);
+            border-radius: 40px;
+            z-index: 1000;
+            display: none;
+        }
     </style>
 </head>
 <body>
