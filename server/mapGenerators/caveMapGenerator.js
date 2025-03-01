@@ -73,12 +73,28 @@ class CaveMapGenerator {
     }
 
     _applyGridToMap(grid, map) {
+        // First pass - set all cells
         for (let y = 0; y < this.height; y++) {
             for (let x = 0; x < this.width; x++) {
                 if (grid[y][x] === 1) {
                     map.setWall(x, y);
                 } else {
-                    map.setEmpty(x, y);
+                    // Check if it's a good spawn point (not too close to walls)
+                    let isGoodSpawn = true;
+                    for (let dy = -1; dy <= 1; dy++) {
+                        for (let dx = -1; dx <= 1; dx++) {
+                            const nx = x + dx;
+                            const ny = y + dy;
+                            if (nx >= 0 && nx < this.width && ny >= 0 && ny < this.height) {
+                                if (grid[ny][nx] === 1) {
+                                    isGoodSpawn = false;
+                                    break;
+                                }
+                            }
+                        }
+                        if (!isGoodSpawn) break;
+                    }
+                    map.setEmpty(x, y, isGoodSpawn);
                 }
             }
         }
@@ -164,13 +180,14 @@ class CaveMapGenerator {
         let y = point1.y;
 
         while (x !== point2.x || y !== point2.y) {
-            map.setEmpty(x, y);
+            // Don't make spawn points in tunnels
+            map.setEmpty(x, y, false);
             if (x < point2.x) x++;
             else if (x > point2.x) x--;
             if (y < point2.y) y++;
             else if (y > point2.y) y--;
         }
-        map.setEmpty(point2.x, point2.y);
+        map.setEmpty(point2.x, point2.y, false);
     }
 
     static generateBasicMap() {

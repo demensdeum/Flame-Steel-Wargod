@@ -16,10 +16,13 @@ class GameMap {
         }
     }
 
-    setEmpty(x, y) {
+    setEmpty(x, y, isSpawnPoint = true) {
         if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
             this.grid[y][x] = 0;
-            if (!this.spawnPoints.some(point => point.x === x && point.y === y)) {
+            // Remove existing spawn point if any
+            this.spawnPoints = this.spawnPoints.filter(point => point.x !== x || point.y !== y);
+            // Add as spawn point only if requested
+            if (isSpawnPoint) {
                 this.spawnPoints.push({ x, y });
             }
         }

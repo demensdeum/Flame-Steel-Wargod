@@ -2,17 +2,28 @@ import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 
 class Game {
+    // Helper function to validate PNG data
+    isPngValid(base64String) {
+        try {
+            // Remove data:image/png;base64, prefix
+            const base64Data = base64String.split(',')[1];
+            // Check if we can decode the base64 string
+            const decodedData = atob(base64Data);
+            // Check PNG signature (first 8 bytes)
+            const pngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+            const isValid = pngSignature.every((byte, i) => byte === decodedData.charCodeAt(i));
+            if (isValid) {
+                console.log('PNG validation successful');
+            } else {
+                console.error('PNG validation failed: Invalid PNG signature');
+            }
+            return isValid;
+        } catch (e) {
+            console.error('PNG validation error:', e);
+            return false;
+        }
+    }
     constructor() {
-        // Create brick texture
-        const brickTextureBase64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAF9UlEQVR4Xu2dS3LbMBBFQeUEWUbWkX2cLLPMOnKCqEQVR7JEEvgAjf7c15U9IIm+ePi1ZPvx9vb2d+Xf29vbY4Y/Pz8f/96/f/+YZvTd6Jrb/dH10XUz16xci67dPn/0+ZXXXe2/1/NH94++W/l85P/t82c1Gd3/6/v37/8A8PPnz8dEf/78+fh89P/b60YE2V43Imh0/ei60XXRdSvXRYJv/4+uG103c83KtdF12+dHP6/4P7pnpP/2npH/2+eLABHSJlwEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQtr/AeNwqYhPOPH4AAAAAElFTkSuQmCC';
-        const textureLoader = new THREE.TextureLoader();
-        this.brickTexture = null;
-        textureLoader.load(brickTextureBase64, (texture) => {
-            texture.wrapS = THREE.RepeatWrapping;
-            texture.wrapT = THREE.RepeatWrapping;
-            texture.repeat.set(1, 2);
-            this.brickTexture = texture;
-        });
 
         this.moveForward = false;
         this.moveBackward = false;
@@ -121,26 +132,21 @@ class Game {
         floor.rotation.x = -Math.PI / 2;
         this.scene.add(floor);
 
-        // Create brick texture
-        const brickTextureBase64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAF9UlEQVR4Xu2dS3LbMBBFQeUEWUbWkX2cLLPMOnKCqEQVR7JEEvgAjf7c15U9IIm+ePi1ZPvx9vb2d+Xf29vbY4Y/Pz8f/96/f/+YZvTd6Jrb/dH10XUz16xci67dPn/0+ZXXXe2/1/NH94++W/l85P/t82c1Gd3/6/v37/8A8PPnz8dEf/78+fh89P/b60YE2V43Imh0/ei60XXRdSvXRYJv/4+uG103c83KtdF12+dHP6/4P7pnpP/2npH/2+eLABHSJlwEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQtr/AeNwqYhPOPH4AAAAAElFTkSuQmCC';
-        const textureLoader = new THREE.TextureLoader();
-        const brickTexture = textureLoader.load(brickTextureBase64);
-        brickTexture.wrapS = THREE.RepeatWrapping;
-        brickTexture.wrapT = THREE.RepeatWrapping;
-        brickTexture.repeat.set(2, 4); // More repetitions for smaller bricks
-        brickTexture.minFilter = THREE.NearestFilter;
-        brickTexture.magFilter = THREE.NearestFilter; // Crisp pixel look
-
-        // Create walls with basic material
-        const wallGeometry = new THREE.BoxGeometry(0.8, 3.2, 0.8);
-        const wallMaterial = new THREE.MeshBasicMaterial({
-            color: 0xffcc00  // Yellow color
+        // Create walls array to track walls for texture update
+        const walls = [];
+        
+        // Create walls with temporary material
+        const tempMaterial = new THREE.MeshBasicMaterial({
+            color: 0xff0000,
+            side: THREE.DoubleSide
         });
+        const wallGeometry = new THREE.BoxGeometry(0.8, 3.2, 0.8);
 
+        // Create walls immediately with temporary material
         for (let x = 0; x < mapData.width; x++) {
             for (let y = 0; y < mapData.height; y++) {
                 if (mapData.grid[y][x] === 1) {  // Wall
-                    const wall = new THREE.Mesh(wallGeometry, wallMaterial);
+                    const wall = new THREE.Mesh(wallGeometry, tempMaterial);
                     wall.position.set(
                         x - (mapData.width / 2),
                         1.6, // Half of height
@@ -148,9 +154,36 @@ class Game {
                     );
                     this.scene.add(wall);
                     this.walls.add(wall);
+                    walls.push(wall);
                 }
             }
         }
+
+        // Load brick texture and update wall materials
+        const textureLoader = new THREE.TextureLoader();
+        textureLoader.load(
+            'textures/bricks.png',
+            (texture) => {
+                texture.wrapS = THREE.RepeatWrapping;
+                texture.wrapT = THREE.RepeatWrapping;
+                texture.repeat.set(2, 2);
+                texture.magFilter = THREE.NearestFilter;
+                texture.minFilter = THREE.NearestFilter;
+                
+                const brickMaterial = new THREE.MeshBasicMaterial({
+                    map: texture,
+                    side: THREE.DoubleSide
+                });
+
+                // Update all wall materials
+                walls.forEach(wall => wall.material = brickMaterial);
+            },
+            undefined,
+            (error) => {
+                console.error('Error loading brick texture:', error);
+                // Walls already have temporary material, no need to recreate
+            }
+        );
     }
 
     updateGameState(state) {
