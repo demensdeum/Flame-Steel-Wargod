@@ -26,6 +26,11 @@ class TransportLayer {
         throw new Error('Method broadcast() must be implemented by subclass');
     }
 
+    // Close a specific client connection
+    closeConnection(connection) {
+        throw new Error('Method closeConnection() must be implemented by subclass');
+    }
+
     // Add message handler
     onMessage(handler) {
         this.messageHandlers.set(handler, handler);

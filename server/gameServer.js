@@ -1,17 +1,22 @@
 const Area = require('./area');
 const Fighter = require('./fighter');
+const Viewer = require('./viewer');
 const MathUtils = require('./mathUtils');
 const TransportFactory = require('./transport/transportFactory');
 const TransportLayer = require('./transport/transportLayer');
 
 class GameServer {
-    constructor(port = 8080, TransportClass = TransportFactory.WebSocket) {
+    constructor(port = 8080, TransportClass = TransportFactory.WebSocket, maxPlayers = 16, maxViewers = 90) {
         if (!(TransportClass.prototype instanceof TransportLayer)) {
             throw new Error('Transport class must extend TransportLayer');
         }
 
         this.port = port;
-        this.clients = new Map(); // Map of client -> Fighter
+        this.maxPlayers = maxPlayers;
+        this.maxViewers = maxViewers;
+        this.clients = new Map(); // Map of client -> Fighter or Viewer
+        this.players = new Set(); // Set of Fighter instances
+        this.viewers = new Set(); // Set of Viewer instances
         this.arena = new Area();
         this.transport = new TransportClass(port);
     }
@@ -36,23 +41,45 @@ class GameServer {
         console.log(`Game server started on port ${this.port}`);
     }
 
-    handleNewConnection(ws) {
-        // Create a new fighter for this client
-        const fighter = new Fighter(`Player${this.clients.size + 1}`);
-        this.clients.set(ws, fighter);
-        this.arena.addEntity(fighter);
+    handleNewConnection(connection) {
+        // Check if viewers limit is reached
+        if (this.viewers.size >= this.maxViewers) {
+            this.transport.send(connection, { type: 'error', message: 'Server is full' });
+            this.transport.closeConnection(connection);
+            return;
+        }
+
+        // All new connections start as viewers
+        const viewer = new Viewer(`Viewer${this.viewers.size + 1}`);
+        this.clients.set(connection, viewer);
+        this.viewers.add(viewer);
+
+        // Send connection info
+        this.transport.send(connection, { 
+            type: 'connectionType', 
+            role: 'viewer',
+            canBecomeFighter: this.players.size < this.maxPlayers
+        });
 
         // Send initial game state
-        this.sendGameState(ws);
+        this.sendGameState(connection);
     }
 
-    handleMessage(ws, message) {
+    handleMessage(connection, message) {
         try {
             const data = JSON.parse(message);
-            const fighter = this.clients.get(ws);
+            const client = this.clients.get(connection);
 
-            if (!fighter) return;
+            if (!client) return;
 
+            if (client instanceof Viewer) {
+                if (data.type === 'becomeFighter') {
+                    this.convertViewerToFighter(connection, client);
+                }
+                return;
+            }
+
+            const fighter = client;
             switch (data.type) {
                 case 'move':
                     fighter.setPosition(data.x, data.y, data.z);
@@ -72,13 +99,18 @@ class GameServer {
         }
     }
 
-    handleDisconnection(ws) {
-        const fighter = this.clients.get(ws);
-        if (fighter) {
-            this.arena.removeEntity(fighter);
-            this.clients.delete(ws);
+    handleDisconnection(connection) {
+        const client = this.clients.get(connection);
+        if (client) {
+            if (client instanceof Fighter) {
+                this.arena.removeEntity(client);
+                this.players.delete(client);
+            } else if (client instanceof Viewer) {
+                this.viewers.delete(client);
+            }
+            this.clients.delete(connection);
         }
-        console.log('Client disconnected');
+        console.log(`${client instanceof Viewer ? 'Viewer' : 'Player'} disconnected`);
         
         // Broadcast updated game state to remaining clients
         this.broadcastGameState();
@@ -160,6 +192,32 @@ class GameServer {
 
     broadcastEvent(event) {
         this.transport.broadcast(event);
+    }
+
+    convertViewerToFighter(connection, viewer) {
+        // Check if we can add more fighters
+        if (this.players.size >= this.maxPlayers) {
+            this.transport.send(connection, { 
+                type: 'error', 
+                message: 'Cannot become fighter - maximum players reached' 
+            });
+            return;
+        }
+
+        // Remove viewer
+        this.viewers.delete(viewer);
+
+        // Create new fighter
+        const fighter = new Fighter(`Player${this.players.size + 1}`);
+        this.clients.set(connection, fighter);
+        this.players.add(fighter);
+        this.arena.addEntity(fighter);
+
+        // Notify client of role change
+        this.transport.send(connection, { type: 'connectionType', role: 'player' });
+
+        // Broadcast updated game state
+        this.broadcastGameState();
     }
 
     stop() {
