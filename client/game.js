@@ -549,38 +549,23 @@ class Game {
             const touch = e.touches[0];
             const deltaX = touch.clientX - this.moveStartPos.x;
             const deltaY = touch.clientY - this.moveStartPos.y;
-            
-            // Get forward direction from camera
-            const forward = new THREE.Vector3(0, 0, -1);
-            forward.applyQuaternion(this.camera.quaternion);
-            forward.y = 0;
-            forward.normalize();
-            
-            // Get right direction
-            const right = new THREE.Vector3(1, 0, 0);
-            right.applyQuaternion(this.camera.quaternion);
-            right.y = 0;
-            right.normalize();
-            
-            // Convert touch movement to world movement
             const moveDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-            if (moveDistance > 10) { // Dead zone
-                const angle = Math.atan2(deltaY, deltaX);
-                
-                // Clear all movement flags
+
+            // Only update movement if touch is in left half of screen
+            if (touch.clientX < window.innerWidth / 2) {
+                // Clear all movement flags first
                 this.moveForward = this.moveBackward = this.moveLeft = this.moveRight = false;
-                
-                // Set movement based on angle
-                if (Math.abs(angle - Math.PI) <= Math.PI/4 || Math.abs(angle + Math.PI) <= Math.PI/4) {
-                    this.moveLeft = true;
-                } else if (Math.abs(angle) <= Math.PI/4) {
-                    this.moveRight = true;
-                }
-                
-                if (angle > Math.PI/4 && angle < 3*Math.PI/4) {
-                    this.moveBackward = true;
-                } else if (angle < -Math.PI/4 && angle > -3*Math.PI/4) {
-                    this.moveForward = true;
+
+                if (moveDistance > 20) { // Dead zone
+                    // Normalize deltas
+                    const normalizedX = deltaX / moveDistance;
+                    const normalizedY = deltaY / moveDistance;
+
+                    // Set movement flags based on normalized direction
+                    if (normalizedY < -0.5) this.moveForward = true;
+                    if (normalizedY > 0.5) this.moveBackward = true;
+                    if (normalizedX < -0.5) this.moveLeft = true;
+                    if (normalizedX > 0.5) this.moveRight = true;
                 }
             }
         });
