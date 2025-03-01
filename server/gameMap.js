@@ -90,6 +90,7 @@ class GameMap {
             worldHeight: this.height * this.cellSize
         };
     }
+
 }
 
 module.exports = GameMap;

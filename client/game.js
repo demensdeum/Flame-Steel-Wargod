@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+import GameMap from './gameMap.js';
 
 class Game {
     // Helper function to validate PNG data
@@ -105,7 +106,7 @@ class Game {
         console.log('Received message:', data);
         if (data.type === 'connected') {
             this.playerId = data.id;
-            this.map = data.map;
+            this.map = new GameMap(data.map);
             console.log('Map data:', this.map);
             this.createMap(data.map);
             return;
@@ -113,81 +114,20 @@ class Game {
         
         switch (data.type) {
             case 'newFight':
+                this.map = new GameMap(data.map);
                 this.createMap(data.map);
                 break;
             case 'gameState':
                 // Set initial position if this is the first gameState
                 if (!this.initialPositionSet) {
                     const myFighter = data.fighters.find(f => f.id === this.playerId);
-                    console.log('Setting initial position from fighter:', myFighter);
-                    
                     if (myFighter) {
-                        // Convert world coordinates to grid coordinates
-                        const gridX = Math.floor(myFighter.x / this.map.cellSize);
-                        const gridY = Math.floor(myFighter.z / this.map.cellSize);
-                        console.log('World coordinates:', {x: myFighter.x, z: myFighter.z});
-                        console.log('Cell size:', this.map.cellSize);
-                        console.log('Initial grid position:', {x: gridX, y: gridY});
-                        console.log('Grid cell value:', this.map.grid[gridY][gridX]);
-                        
-                        // First verify bounds
-                        if (gridX >= 0 && gridX < this.map.width && gridY >= 0 && gridY < this.map.height) {
-                            // Check if current position is safe
-                            let isValid = true;
-                            let safeX = gridX;
-                            let safeY = gridY;
-                            
-                            // First check current position
-                            if (this.map.grid[gridY][gridX] === 1) {
-                                isValid = false;
-                                // Try to find safe spot in 5x5 area
-                                let found = false;
-                                for (let r = 1; r <= 2 && !found; r++) {
-                                    for (let dy = -r; dy <= r && !found; dy++) {
-                                        for (let dx = -r; dx <= r && !found; dx++) {
-                                            const newX = gridX + dx;
-                                            const newY = gridY + dy;
-                                            if (newX >= 0 && newX < this.map.width && 
-                                                newY >= 0 && newY < this.map.height && 
-                                                this.map.grid[newY][newX] === 0) {
-                                                // Check 3x3 area around potential spot
-                                                let spotValid = true;
-                                                for (let cy = -1; cy <= 1 && spotValid; cy++) {
-                                                    for (let cx = -1; cx <= 1 && spotValid; cx++) {
-                                                        const checkX = newX + cx;
-                                                        const checkY = newY + cy;
-                                                        if (checkX >= 0 && checkX < this.map.width && 
-                                                            checkY >= 0 && checkY < this.map.height && 
-                                                            this.map.grid[checkY][checkX] === 1) {
-                                                            spotValid = false;
-                                                        }
-                                                    }
-                                                }
-                                                if (spotValid) {
-                                                    safeX = newX;
-                                                    safeY = newY;
-                                                    found = true;
-                                                    isValid = true;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            
-                            if (isValid) {
-                                // Position in world space
-                                this.camera.position.y = 1;
-                                this.camera.position.x = safeX - this.map.width/2 + 0.5;
-                                this.camera.position.z = safeY - this.map.height/2 + 0.5;
-                                console.log('Set camera position to:', this.camera.position);
-                                this.initialPositionSet = true;
-                            } else {
-                                console.error('Could not find safe position near:', {gridX, gridY});
-                            }
-                        } else {
-                            console.error('Position out of bounds:', {gridX, gridY, mapSize: {width: this.map.width, height: this.map.height}});
-                        }
+                        // Position in world space - scale by cellSize and center in map
+                        this.camera.position.y = 1;
+                        this.camera.position.x = (myFighter.x / this.map.cellSize) - this.map.width/2 + 0.5;
+                        this.camera.position.z = (myFighter.z / this.map.cellSize) - this.map.height/2 + 0.5;
+                        console.log('Set camera position to:', this.camera.position, 'from fighter:', myFighter);
+                        this.initialPositionSet = true;
                     }
                 }
                 this.updateGameState(data);
@@ -201,9 +141,6 @@ class Game {
         this.walls.forEach(wall => this.scene.remove(wall));
         this.walls.clear();
 
-        // Store map data for later use
-        this.map = mapData;
-        
         // Create floor using grid units
         const floorGeometry = new THREE.PlaneGeometry(mapData.width, mapData.height);
         const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x0066cc });
@@ -411,6 +348,16 @@ class Game {
         return this.map.grid[gridY][gridX] === 0;
     }
 
+    canMoveInDirection(x, z) {
+        // Convert world to grid coordinates
+        const futureX = x + this.map.width/2;
+        const futureZ = z + this.map.height/2;
+        const gridX = Math.floor(futureX);
+        const gridZ = Math.floor(futureZ);
+        
+        return this.map.isEmptyCell(gridX, gridZ);
+    }
+
     updateMovement() {
         if (!this.controls.isLocked) return;
 
@@ -433,6 +380,7 @@ class Game {
         let moveX = 0;
         let moveZ = 0;
 
+        // Calculate desired movement
         if (this.moveForward) {
             moveX += forward.x * moveSpeed * delta;
             moveZ += forward.z * moveSpeed * delta;
@@ -450,8 +398,19 @@ class Game {
             moveZ += right.z * moveSpeed * delta;
         }
 
-        this.camera.position.x += moveX;
-        this.camera.position.z += moveZ;
+        // Check X and Z movements separately
+        const futureX = this.camera.position.x + moveX;
+        const futureZ = this.camera.position.z + moveZ;
+
+        // Try X movement
+        if (this.canMoveInDirection(futureX, this.camera.position.z)) {
+            this.camera.position.x = futureX;
+        }
+
+        // Try Z movement
+        if (this.canMoveInDirection(this.camera.position.x, futureZ)) {
+            this.camera.position.z = futureZ;
+        }
         
         // Send position update to server
         if (moveX !== 0 || moveZ !== 0) {
