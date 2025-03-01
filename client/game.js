@@ -79,14 +79,31 @@ class Game {
         this.controls = new PointerLockControls(this.camera, document.body);
         this.camera.position.y = 1.6; // Eye height
 
-        blocker.addEventListener('click', () => {
-            this.controls.lock();
+        // Handle both click and touch for game start
+        const startGame = () => {
+            if (this.isMobile) {
+                // On mobile, just hide blocker and show controls
+                blocker.style.display = 'none';
+                this.hud.show();
+                // Start touch controls
+                this.setupTouchControls();
+            } else {
+                this.controls.lock();
+            }
+        };
+
+        blocker.addEventListener('click', startGame);
+        blocker.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            startGame();
         });
 
-        this.controls.addEventListener('lock', () => {
-            blocker.style.display = 'none';
-            this.hud.show();
-        });
+        if (!this.isMobile) {
+            this.controls.addEventListener('lock', () => {
+                blocker.style.display = 'none';
+                this.hud.show();
+            });
+        }
 
         this.controls.addEventListener('unlock', () => {
             blocker.style.display = 'flex';
