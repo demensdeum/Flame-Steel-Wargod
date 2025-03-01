@@ -50,7 +50,7 @@ class GameServer {
         console.log(`Game server started on port ${this.port}`);
     }
 
-    startNewFight(generatorType = MapGeneratorType.ARENA) {
+    startNewFight(generatorType = MapGeneratorType.ROOM) {
         let generator;
         switch (generatorType) {
             case MapGeneratorType.CAVE:
