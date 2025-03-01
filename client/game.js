@@ -212,33 +212,47 @@ class Game {
         floor.position.set(0, 0, 0);
         this.scene.add(floor);
 
-        // Create walls array to track walls for texture update
-        const walls = [];
-        
-        // Create walls with temporary material
+        // Count walls for instancing
+        let wallCount = 0;
+        for (let y = 0; y < mapData.height; y++) {
+            for (let x = 0; x < mapData.width; x++) {
+                if (mapData.grid[y][x] === 1) {
+                    wallCount++;
+                }
+            }
+        }
+
+        // Create temporary instanced mesh
+        const wallGeometry = new THREE.BoxGeometry(1, 2, 1);
         const tempMaterial = new THREE.MeshBasicMaterial({
             color: 0xff0000,
             side: THREE.DoubleSide
         });
-        // Make walls 1 unit wide and 2 units tall
-        const wallGeometry = new THREE.BoxGeometry(1, 2, 1);
-
-        // Create walls immediately with temporary material
-        for (let x = 0; x < mapData.width; x++) {
-            for (let y = 0; y < mapData.height; y++) {
-                if (mapData.grid[y][x] === 1) {  // Wall
-                    const wall = new THREE.Mesh(wallGeometry, tempMaterial);
-                    wall.position.set(
-                        x - mapData.width/2 + 0.5, // Center in cell
-                        1, // Half of wall height
-                        y - mapData.height/2 + 0.5  // Center in cell
+        
+        const instancedMesh = new THREE.InstancedMesh(wallGeometry, tempMaterial, wallCount);
+        this.walls.add(instancedMesh);
+        
+        // Set instance positions
+        let instanceIndex = 0;
+        const matrix = new THREE.Matrix4();
+        
+        for (let y = 0; y < mapData.height; y++) {
+            for (let x = 0; x < mapData.width; x++) {
+                if (mapData.grid[y][x] === 1) {
+                    matrix.setPosition(
+                        x - mapData.width/2 + 0.5,
+                        1,
+                        y - mapData.height/2 + 0.5
                     );
-                    this.scene.add(wall);
-                    this.walls.add(wall);
-                    walls.push(wall);
+                    instancedMesh.setMatrixAt(instanceIndex, matrix);
+                    instanceIndex++;
                 }
             }
         }
+        
+        // Update instance matrices
+        instancedMesh.instanceMatrix.needsUpdate = true;
+        this.scene.add(instancedMesh);
 
         // Load brick texture and update wall materials
         const textureLoader = new THREE.TextureLoader();
@@ -248,16 +262,18 @@ class Game {
                 texture.wrapS = THREE.RepeatWrapping;
                 texture.wrapT = THREE.RepeatWrapping;
                 texture.repeat.set(2, 2);
-                texture.magFilter = THREE.NearestFilter;
-                texture.minFilter = THREE.NearestFilter;
+                texture.magFilter = THREE.LinearFilter;
+                texture.minFilter = THREE.LinearMipMapLinearFilter;
+                texture.generateMipmaps = true;
+                texture.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
                 
                 const brickMaterial = new THREE.MeshBasicMaterial({
                     map: texture,
                     side: THREE.DoubleSide
                 });
 
-                // Update all wall materials
-                walls.forEach(wall => wall.material = brickMaterial);
+                // Update instanced mesh material
+                instancedMesh.material = brickMaterial;
             },
             undefined,
             (error) => {
