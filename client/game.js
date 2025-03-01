@@ -540,7 +540,6 @@ class Game {
             const touch = e.touches[0];
             this.moveStartPos = { x: touch.clientX, y: touch.clientY };
             this.moveActive = true;
-            this.moveDirection = { x: 0, z: 0 };
         });
 
         moveArea.addEventListener('touchmove', (e) => {
@@ -550,25 +549,45 @@ class Game {
             const touch = e.touches[0];
             const deltaX = touch.clientX - this.moveStartPos.x;
             const deltaY = touch.clientY - this.moveStartPos.y;
-            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-
-            if (distance > 10) { // Small dead zone
-                // Normalize the movement vector
-                this.moveDirection.x = deltaX / distance;
-                this.moveDirection.z = deltaY / distance;
-
-                // Update movement flags based on normalized direction
-                this.moveForward = this.moveDirection.z < -0.1;
-                this.moveBackward = this.moveDirection.z > 0.1;
-                this.moveLeft = this.moveDirection.x < -0.1;
-                this.moveRight = this.moveDirection.x > 0.1;
+            
+            // Get forward direction from camera
+            const forward = new THREE.Vector3(0, 0, -1);
+            forward.applyQuaternion(this.camera.quaternion);
+            forward.y = 0;
+            forward.normalize();
+            
+            // Get right direction
+            const right = new THREE.Vector3(1, 0, 0);
+            right.applyQuaternion(this.camera.quaternion);
+            right.y = 0;
+            right.normalize();
+            
+            // Convert touch movement to world movement
+            const moveDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            if (moveDistance > 10) { // Dead zone
+                const angle = Math.atan2(deltaY, deltaX);
+                
+                // Clear all movement flags
+                this.moveForward = this.moveBackward = this.moveLeft = this.moveRight = false;
+                
+                // Set movement based on angle
+                if (Math.abs(angle - Math.PI) <= Math.PI/4 || Math.abs(angle + Math.PI) <= Math.PI/4) {
+                    this.moveLeft = true;
+                } else if (Math.abs(angle) <= Math.PI/4) {
+                    this.moveRight = true;
+                }
+                
+                if (angle > Math.PI/4 && angle < 3*Math.PI/4) {
+                    this.moveBackward = true;
+                } else if (angle < -Math.PI/4 && angle > -3*Math.PI/4) {
+                    this.moveForward = true;
+                }
             }
         });
 
         moveArea.addEventListener('touchend', () => {
             this.moveActive = false;
             this.moveForward = this.moveBackward = this.moveLeft = this.moveRight = false;
-            this.moveDirection = { x: 0, z: 0 };
         });
 
         // Look touch handling
