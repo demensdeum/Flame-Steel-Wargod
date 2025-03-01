@@ -1,36 +1,38 @@
-const WebSocket = require('ws');
 const Area = require('./area');
 const Fighter = require('./fighter');
 const MathUtils = require('./mathUtils');
+const TransportFactory = require('./transport/transportFactory');
+const TransportLayer = require('./transport/transportLayer');
 
 class GameServer {
-    constructor(port = 8080) {
+    constructor(port = 8080, TransportClass = TransportFactory.WebSocket) {
+        if (!(TransportClass.prototype instanceof TransportLayer)) {
+            throw new Error('Transport class must extend TransportLayer');
+        }
+
         this.port = port;
-        this.clients = new Map(); // Map of WebSocket -> Fighter
+        this.clients = new Map(); // Map of client -> Fighter
         this.arena = new Area();
-        this.server = null;
+        this.transport = new TransportClass(port);
     }
 
     start() {
-        this.server = new WebSocket.Server({ port: this.port });
-        
-        this.server.on('connection', (ws) => {
+        // Set up transport layer handlers
+        this.transport.onConnection((client) => {
             console.log('New client connected');
-            
-            // Handle new connection
-            this.handleNewConnection(ws);
-
-            // Handle messages
-            ws.on('message', (message) => {
-                this.handleMessage(ws, message);
-            });
-
-            // Handle disconnection
-            ws.on('close', () => {
-                this.handleDisconnection(ws);
-            });
+            this.handleNewConnection(client);
         });
 
+        this.transport.onMessage((client, message) => {
+            this.handleMessage(client, message);
+        });
+
+        this.transport.onDisconnection((client) => {
+            this.handleDisconnection(client);
+        });
+
+        // Start transport layer
+        this.transport.start();
         console.log(`Game server started on port ${this.port}`);
     }
 
@@ -127,7 +129,7 @@ class GameServer {
         });
     }
 
-    sendGameState(ws) {
+    sendGameState(client) {
         const gameState = {
             type: 'gameState',
             entities: this.arena.getEntities().map(entity => ({
@@ -138,11 +140,11 @@ class GameServer {
                 health: entity instanceof Fighter ? entity.getCurrentHealth() : null
             }))
         };
-        ws.send(JSON.stringify(gameState));
+        this.transport.send(client, gameState);
     }
 
     broadcastGameState() {
-        const gameState = JSON.stringify({
+        const gameState = {
             type: 'gameState',
             entities: this.arena.getEntities().map(entity => ({
                 type: entity.constructor.name,
@@ -151,29 +153,18 @@ class GameServer {
                 rotation: entity.getRotation(),
                 health: entity instanceof Fighter ? entity.getCurrentHealth() : null
             }))
-        });
+        };
 
-        this.clients.forEach((_, ws) => {
-            if (ws.readyState === WebSocket.OPEN) {
-                ws.send(gameState);
-            }
-        });
+        this.transport.broadcast(gameState);
     }
 
     broadcastEvent(event) {
-        const eventMessage = JSON.stringify(event);
-        this.clients.forEach((_, ws) => {
-            if (ws.readyState === WebSocket.OPEN) {
-                ws.send(eventMessage);
-            }
-        });
+        this.transport.broadcast(event);
     }
 
     stop() {
-        if (this.server) {
-            this.server.close();
-            console.log('Game server stopped');
-        }
+        this.transport.stop();
+        console.log('Game server stopped');
     }
 }
 
