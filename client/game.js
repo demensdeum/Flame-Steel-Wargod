@@ -349,13 +349,28 @@ class Game {
     }
 
     canMoveInDirection(x, z) {
-        // Convert world to grid coordinates
-        const futureX = x + this.map.width/2;
-        const futureZ = z + this.map.height/2;
-        const gridX = Math.floor(futureX);
-        const gridZ = Math.floor(futureZ);
+        // Add padding to avoid getting too close to walls
+        const padding = 0.3;
         
-        return this.map.isEmptyCell(gridX, gridZ);
+        // Check center and padded points
+        const checkPoints = [
+            [x, z],  // Center
+            [x + padding, z],  // Right
+            [x - padding, z],  // Left
+            [x, z + padding],  // Front
+            [x, z - padding]   // Back
+        ];
+        
+        // If any check point hits a wall, block movement
+        return checkPoints.every(([checkX, checkZ]) => {
+            // Convert world to grid coordinates
+            const futureX = checkX + this.map.width/2;
+            const futureZ = checkZ + this.map.height/2;
+            const gridX = Math.floor(futureX);
+            const gridZ = Math.floor(futureZ);
+            
+            return this.map.isEmptyCell(gridX, gridZ);
+        });
     }
 
     updateMovement() {
