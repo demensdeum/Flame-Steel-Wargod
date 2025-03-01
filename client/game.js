@@ -106,14 +106,46 @@ class Game {
         if (data.type === 'connected') {
             this.playerId = data.id;
             this.map = data.map;
+            console.log('Map data:', this.map);
             this.createMap(data.map);
             return;
         }
+        
         switch (data.type) {
             case 'newFight':
                 this.createMap(data.map);
                 break;
             case 'gameState':
+                // Set initial position if this is the first gameState
+                if (!this.initialPositionSet) {
+                    const myFighter = data.fighters.find(f => f.id === this.playerId);
+                    console.log('Setting initial position from fighter:', myFighter);
+                    
+                    if (myFighter) {
+                        // Convert world coordinates to grid coordinates
+                        const gridX = Math.floor(myFighter.x / this.map.cellSize);
+                        const gridY = Math.floor(myFighter.z / this.map.cellSize);
+                        console.log('World coordinates:', {x: myFighter.x, z: myFighter.z});
+                        console.log('Cell size:', this.map.cellSize);
+                        console.log('Initial grid position:', {x: gridX, y: gridY});
+                        
+                        // Verify we're not in a wall
+                        if (gridX >= 0 && gridX < this.map.width && gridY >= 0 && gridY < this.map.height) {
+                            const isWall = this.map.grid[gridY][gridX] === 1;
+                            console.log('Is wall?', isWall);
+                            
+                            if (!isWall) {
+                                this.camera.position.set(myFighter.x, 1.6, myFighter.z);
+                                console.log('Set camera position to:', this.camera.position);
+                                this.initialPositionSet = true;
+                            } else {
+                                console.error('Initial position is in a wall!');
+                            }
+                        } else {
+                            console.error('Position out of bounds:', {gridX, gridY, mapSize: {width: this.map.width, height: this.map.height}});
+                        }
+                    }
+                }
                 this.updateGameState(data);
                 break;
         }
@@ -125,8 +157,12 @@ class Game {
         this.walls.forEach(wall => this.scene.remove(wall));
         this.walls.clear();
 
-        // Create floor
-        const floorGeometry = new THREE.PlaneGeometry(mapData.width, mapData.height);
+        // Store map data for later use
+        this.map = mapData;
+        
+        // Create floor - size should match world coordinates
+        const floorSize = mapData.width * mapData.cellSize;
+        const floorGeometry = new THREE.PlaneGeometry(floorSize, floorSize);
         const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x0066cc });
         const floor = new THREE.Mesh(floorGeometry, floorMaterial);
         floor.rotation.x = -Math.PI / 2;
@@ -140,7 +176,8 @@ class Game {
             color: 0xff0000,
             side: THREE.DoubleSide
         });
-        const wallGeometry = new THREE.BoxGeometry(0.8, 3.2, 0.8);
+        const wallSize = mapData.cellSize * 0.8; // Make walls slightly smaller than cell
+        const wallGeometry = new THREE.BoxGeometry(wallSize, wallSize * 2, wallSize);
 
         // Create walls immediately with temporary material
         for (let x = 0; x < mapData.width; x++) {
@@ -148,9 +185,9 @@ class Game {
                 if (mapData.grid[y][x] === 1) {  // Wall
                     const wall = new THREE.Mesh(wallGeometry, tempMaterial);
                     wall.position.set(
-                        x - (mapData.width / 2),
-                        1.6, // Half of height
-                        y - (mapData.height / 2)
+                        x * mapData.cellSize,
+                        wallSize, // Half of wall height
+                        y * mapData.cellSize
                     );
                     this.scene.add(wall);
                     this.walls.add(wall);

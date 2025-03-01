@@ -73,6 +73,7 @@ class CaveMapGenerator {
     }
 
     _applyGridToMap(grid, map) {
+        console.log('Applying grid to map...');
         // First pass - set all cells
         for (let y = 0; y < this.height; y++) {
             for (let x = 0; x < this.width; x++) {
@@ -81,12 +82,15 @@ class CaveMapGenerator {
                 } else {
                     // Check if it's a good spawn point (not too close to walls)
                     let isGoodSpawn = true;
-                    for (let dy = -1; dy <= 1; dy++) {
-                        for (let dx = -1; dx <= 1; dx++) {
+                    
+                    // Check a larger area around the potential spawn point
+                    for (let dy = -2; dy <= 2; dy++) {
+                        for (let dx = -2; dx <= 2; dx++) {
                             const nx = x + dx;
                             const ny = y + dy;
                             if (nx >= 0 && nx < this.width && ny >= 0 && ny < this.height) {
                                 if (grid[ny][nx] === 1) {
+                                    // If it's too close to a wall, not a good spawn point
                                     isGoodSpawn = false;
                                     break;
                                 }
@@ -94,7 +98,27 @@ class CaveMapGenerator {
                         }
                         if (!isGoodSpawn) break;
                     }
+                    
+                    // Additional check: ensure there's enough open space
+                    if (isGoodSpawn) {
+                        let openSpaceCount = 0;
+                        for (let dy = -2; dy <= 2; dy++) {
+                            for (let dx = -2; dx <= 2; dx++) {
+                                const nx = x + dx;
+                                const ny = y + dy;
+                                if (nx >= 0 && nx < this.width && ny >= 0 && ny < this.height && grid[ny][nx] === 0) {
+                                    openSpaceCount++;
+                                }
+                            }
+                        }
+                        // Need at least 16 open spaces around spawn point
+                        isGoodSpawn = openSpaceCount >= 16;
+                    }
+                    
                     map.setEmpty(x, y, isGoodSpawn);
+                    if (isGoodSpawn) {
+                        console.log('Found good spawn point at:', {x, y});
+                    }
                 }
             }
         }

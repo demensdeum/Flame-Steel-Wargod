@@ -75,18 +75,58 @@ class GameServer {
         }
 
         const fighter = new Fighter(`Player${this.players.size + 1}`);
-        const spawnPoint = this.arena.getMap().getRandomSpawnPoint();
+        
+        // Get map and validate spawn point
+        const map = this.arena.getMap();
+        let spawnPoint = map.getRandomSpawnPoint();
+        let attempts = 0;
+        const maxAttempts = 10;
+        
+        // Keep trying to find a valid spawn point
+        while (attempts < maxAttempts) {
+            // Convert to grid coordinates
+            const gridX = Math.floor(spawnPoint.x / map.cellSize);
+            const gridY = Math.floor(spawnPoint.z / map.cellSize);
+            
+            console.log('Trying spawn point:', {
+                world: spawnPoint,
+                grid: {x: gridX, y: gridY},
+                cellSize: map.cellSize
+            });
+            
+            // Validate grid position
+            if (gridX >= 0 && gridX < map.width && gridY >= 0 && gridY < map.height) {
+                if (map.grid[gridY][gridX] === 0) {
+                    // Valid spawn point found
+                    console.log('Valid spawn point found:', {
+                        world: spawnPoint,
+                        grid: {x: gridX, y: gridY},
+                        cell: map.grid[gridY][gridX]
+                    });
+                    break;
+                }
+            }
+            
+            console.log('Invalid spawn point, retrying...');
+            spawnPoint = map.getRandomSpawnPoint();
+            attempts++;
+        }
+        
+        if (attempts === maxAttempts) {
+            console.error('Could not find valid spawn point after', maxAttempts, 'attempts');
+        }
+        
         fighter.setPosition(spawnPoint.x, spawnPoint.y, spawnPoint.z);
-
         this.clients.set(connection, fighter);
         this.players.add(fighter);
 
         this.transport.send(connection, { 
             type: 'connected',
             id: fighter.id,
-            map: this.arena.getMap()
+            map: map
         });
 
+        // Send game state immediately after connection
         this.broadcastGameState();
     }
 

@@ -32,11 +32,17 @@ class GameMap {
         if (this.spawnPoints.length === 0) {
             throw new Error('No available spawn points');
         }
+        console.log('Available spawn points:', this.spawnPoints);
+        console.log('Map grid:', this.grid);
+        
         const point = this.spawnPoints[Math.floor(Math.random() * this.spawnPoints.length)];
+        console.log('Selected spawn point:', point);
+        
+        // Convert grid coordinates to world coordinates
         return {
-            x: (point.x + 0.5) * this.cellSize,
+            x: point.x * this.cellSize,
             y: 0,
-            z: (point.y + 0.5) * this.cellSize
+            z: point.y * this.cellSize
         };
     }
 
