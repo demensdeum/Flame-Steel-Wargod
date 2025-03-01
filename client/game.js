@@ -460,11 +460,19 @@ class Game {
     }
 
     updateMovement() {
-        if (!this.controls.isLocked) return;
+        // Allow movement for both locked controls and mobile
+        if (!this.controls.isLocked && !this.isMobile) return;
 
         const time = performance.now();
         const delta = (time - this.prevTime) / 1000;
         const moveSpeed = 3.0;
+        
+        console.log('Update movement:', {
+            moveForward: this.moveForward,
+            moveBackward: this.moveBackward,
+            moveLeft: this.moveLeft,
+            moveRight: this.moveRight
+        });
 
         // Get forward direction from quaternion
         const forward = new THREE.Vector3(0, 0, -1);
@@ -644,7 +652,12 @@ class Game {
 
     animate() {
         requestAnimationFrame(() => this.animate());
-        this.updateMovement();
+        
+        // Only update movement if we have a map and controls are active
+        if (this.map && (this.controls.isLocked || this.isMobile)) {
+            this.updateMovement();
+        }
+        
         this.renderer.render(this.scene, this.camera);
     }
 }
