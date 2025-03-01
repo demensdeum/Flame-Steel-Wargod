@@ -1,0 +1,12 @@
+{
+  "name": "flame-steel-wargod",
+  "version": "1.0.0",
+  "description": "Multiplayer arena combat game",
+  "main": "server/main.js",
+  "scripts": {
+    "start": "node server/main.js"
+  },
+  "dependencies": {
+    "ws": "^8.16.0"
+  }
+}
