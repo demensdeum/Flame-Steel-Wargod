@@ -121,12 +121,20 @@ class Game {
         floor.rotation.x = -Math.PI / 2;
         this.scene.add(floor);
 
-        // Create walls
+        // Create brick texture
+        const brickTextureBase64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAF9UlEQVR4Xu2dS3LbMBBFQeUEWUbWkX2cLLPMOnKCqEQVR7JEEvgAjf7c15U9IIm+ePi1ZPvx9vb2d+Xf29vbY4Y/Pz8f/96/f/+YZvTd6Jrb/dH10XUz16xci67dPn/0+ZXXXe2/1/NH94++W/l85P/t82c1Gd3/6/v37/8A8PPnz8dEf/78+fh89P/b60YE2V43Imh0/ei60XXRdSvXRYJv/4+uG103c83KtdF12+dHP6/4P7pnpP/2npH/2+eLABHSJlwEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQtr/AeNwqYhPOPH4AAAAAElFTkSuQmCC';
+        const textureLoader = new THREE.TextureLoader();
+        const brickTexture = textureLoader.load(brickTextureBase64);
+        brickTexture.wrapS = THREE.RepeatWrapping;
+        brickTexture.wrapT = THREE.RepeatWrapping;
+        brickTexture.repeat.set(2, 4); // More repetitions for smaller bricks
+        brickTexture.minFilter = THREE.NearestFilter;
+        brickTexture.magFilter = THREE.NearestFilter; // Crisp pixel look
+
+        // Create walls with basic material
         const wallGeometry = new THREE.BoxGeometry(0.8, 3.2, 0.8);
-        const wallMaterial = new THREE.MeshStandardMaterial({
-            color: 0xffcc00,  // Yellow color
-            roughness: 0.8,
-            metalness: 0.0
+        const wallMaterial = new THREE.MeshBasicMaterial({
+            color: 0xffcc00  // Yellow color
         });
 
         for (let x = 0; x < mapData.width; x++) {
