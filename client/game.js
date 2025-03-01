@@ -579,12 +579,19 @@ class Game {
             const frameDeltaX = deltaX - this.lastDeltaX;
             const frameDeltaY = deltaY - this.lastDeltaY;
 
-            // Apply smooth rotation with frame delta
+            // Apply yaw (left/right) rotation
             const sensitivity = 0.003;
             this.camera.rotation.y -= frameDeltaX * sensitivity;
-            this.camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, 
-                this.camera.rotation.x - frameDeltaY * sensitivity
-            ));
+
+            // Apply pitch (up/down) rotation with clamping
+            const newPitch = this.camera.rotation.x - frameDeltaY * sensitivity;
+            this.camera.rotation.x = Math.max(-Math.PI/3, Math.min(Math.PI/3, newPitch));
+
+            // Keep roll (z-axis) at 0 to prevent tilting
+            this.camera.rotation.z = 0;
+
+            // Update quaternion from euler angles
+            this.camera.quaternion.setFromEuler(this.camera.rotation);
 
             // Store current deltas for next frame
             this.lastDeltaX = deltaX;
