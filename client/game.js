@@ -3,6 +3,17 @@ import { PointerLockControls } from 'three/addons/controls/PointerLockControls.j
 
 class Game {
     constructor() {
+        // Create brick texture
+        const brickTextureBase64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAF9UlEQVR4Xu2dS3LbMBBFQeUEWUbWkX2cLLPMOnKCqEQVR7JEEvgAjf7c15U9IIm+ePi1ZPvx9vb2d+Xf29vbY4Y/Pz8f/96/f/+YZvTd6Jrb/dH10XUz16xci67dPn/0+ZXXXe2/1/NH94++W/l85P/t82c1Gd3/6/v37/8A8PPnz8dEf/78+fh89P/b60YE2V43Imh0/ei60XXRdSvXRYJv/4+uG103c83KtdF12+dHP6/4P7pnpP/2npH/2+eLABHSJlwEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQloEiJDWBhEgQtr/AeNwqYhPOPH4AAAAAElFTkSuQmCC';
+        const textureLoader = new THREE.TextureLoader();
+        this.brickTexture = null;
+        textureLoader.load(brickTextureBase64, (texture) => {
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            texture.repeat.set(1, 2);
+            this.brickTexture = texture;
+        });
+
         this.moveForward = false;
         this.moveBackward = false;
         this.moveLeft = false;
@@ -11,18 +22,11 @@ class Game {
         this.direction = new THREE.Vector3();
         this.playerId = null;
         this.prevTime = performance.now();
-        this.scene = new THREE.Scene();
-        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        this.renderer = new THREE.WebGLRenderer();
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(this.renderer.domElement);
-
-        this.controls = new PointerLockControls(this.camera, document.body);
-        this.camera.position.y = 1.6; // Eye height
-
         // Click to start
         const blocker = document.createElement('div');
-        blocker.style.position = 'absolute';
+        blocker.style.position = 'fixed';
+        blocker.style.top = '0';
+        blocker.style.left = '0';
         blocker.style.width = '100%';
         blocker.style.height = '100%';
         blocker.style.backgroundColor = 'rgba(0,0,0,0.5)';
@@ -32,8 +36,18 @@ class Game {
         blocker.style.color = 'white';
         blocker.style.fontSize = '24px';
         blocker.style.cursor = 'pointer';
+        blocker.style.zIndex = '999';
         blocker.textContent = 'Click to Play';
         document.body.appendChild(blocker);
+
+        this.scene = new THREE.Scene();
+        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        this.renderer = new THREE.WebGLRenderer();
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(this.renderer.domElement);
+
+        this.controls = new PointerLockControls(this.camera, document.body);
+        this.camera.position.y = 1.6; // Eye height
 
         blocker.addEventListener('click', () => {
             this.controls.lock();
@@ -62,12 +76,9 @@ class Game {
     }
 
     setupLights() {
-        const ambientLight = new THREE.AmbientLight(0x404040);
+        // Single bright ambient light like in Wolf3D
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
         this.scene.add(ambientLight);
-
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-        directionalLight.position.set(10, 10, 10);
-        this.scene.add(directionalLight);
     }
 
     setupWebSocket() {
@@ -105,14 +116,18 @@ class Game {
 
         // Create floor
         const floorGeometry = new THREE.PlaneGeometry(mapData.width, mapData.height);
-        const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 });
+        const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x0066cc });
         const floor = new THREE.Mesh(floorGeometry, floorMaterial);
         floor.rotation.x = -Math.PI / 2;
         this.scene.add(floor);
 
         // Create walls
         const wallGeometry = new THREE.BoxGeometry(0.8, 3.2, 0.8);
-        const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 });
+        const wallMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffcc00,  // Yellow color
+            roughness: 0.8,
+            metalness: 0.0
+        });
 
         for (let x = 0; x < mapData.width; x++) {
             for (let y = 0; y < mapData.height; y++) {
