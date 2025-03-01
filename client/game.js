@@ -103,6 +103,8 @@ class Game {
                 // On mobile, just hide blocker and show controls
                 blocker.style.display = 'none';
                 this.hud.show();
+                // Show touch controls
+                document.getElementById('touchControls').style.display = 'block';
                 // Start touch controls
                 this.setupTouchControls();
             } else {
@@ -532,7 +534,10 @@ class Game {
         const touchControls = document.getElementById('touchControls');
         const moveArea = document.getElementById('moveArea');
         const lookArea = document.getElementById('lookArea');
+        
+        // Make sure touch controls are visible
         touchControls.style.display = 'block';
+        touchControls.style.zIndex = '100000';
 
         // Movement touch handling
         moveArea.addEventListener('touchstart', (e) => {
