@@ -251,8 +251,8 @@ class Game {
                 if (fighter.weapon !== undefined) this.currentWeapon = fighter.weapon;
                 if (fighter.armor !== undefined) this.armor = fighter.armor;
                 
-                // Update HUD
-                this.hud.update(this.health, this.currentWeapon, this.armor);
+                // Update player stats only
+                this.hud.update(this.health, this.currentWeapon, this.armor, fighters.length);
                 return;
             }
             
@@ -274,8 +274,10 @@ class Game {
                 (fighter.z / this.map.cellSize) - this.map.height/2 + 0.5
             );
 
-            // Update rotation
-            cube.rotation.set(fighter.rotation.x, fighter.rotation.y, fighter.rotation.z);
+            // Update rotation from rx, ry, rz
+            if (fighter.rx !== undefined && fighter.ry !== undefined && fighter.rz !== undefined) {
+                cube.rotation.set(fighter.rx, fighter.ry, fighter.rz);
+            }
         });
 
         // Remove disconnected fighters
@@ -286,6 +288,9 @@ class Game {
                 this.fighters.delete(id);
             }
         }
+        
+        // Update HUD with latest fighter count
+        this.hud.update(this.health, this.currentWeapon, this.armor, this.fighters.size);
     }
 
     onWindowResize() {

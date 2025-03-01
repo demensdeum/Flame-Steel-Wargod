@@ -12,22 +12,26 @@ export default class HUD {
         this.healthDisplay = document.createElement('div');
         this.weaponDisplay = document.createElement('div');
         this.armorDisplay = document.createElement('div');
+        this.fighterCountDisplay = document.createElement('div');
         
         this.container.appendChild(this.healthDisplay);
         this.container.appendChild(this.weaponDisplay);
         this.container.appendChild(this.armorDisplay);
+        this.container.appendChild(this.fighterCountDisplay);
         
         document.body.appendChild(this.container);
         
         this.health = 100;
         this.currentWeapon = 'Fists';
         this.armor = 0;
+        this.fighterCount = 0;
     }
     
-    update(health, weapon, armor) {
+    update(health, weapon, armor, fighterCount) {
         this.health = health;
         this.currentWeapon = weapon;
         this.armor = armor;
+        this.fighterCount = fighterCount;
         this.render();
     }
     
@@ -35,6 +39,7 @@ export default class HUD {
         this.healthDisplay.textContent = `❤️ Health: ${this.health}`;
         this.weaponDisplay.textContent = `🗡️ Weapon: ${this.currentWeapon}`;
         this.armorDisplay.textContent = `🛡️ Armor: ${this.armor}`;
+        this.fighterCountDisplay.textContent = `👥 Fighters: ${this.fighterCount}`;
     }
     
     show() {
