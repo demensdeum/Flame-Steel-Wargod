@@ -3,13 +3,20 @@ const Armor = require('./armor');
 const ArenaObject = require('./arenaObject');
 
 class Fighter extends ArenaObject {
+    static nextId = 1;
+
     constructor(name, maxHealth = 100, x = 0, y = 0, z = 0, qx = 0, qy = 0, qz = 0, qw = 1) {
         super(x, y, z, 1, 2, 1, qx, qy, qz, qw);
+        this.id = Fighter.nextId++;
         this.name = name;
         this.maxHealth = maxHealth;
-        this.currentHealth = maxHealth;
+        this.health = maxHealth;
         this.weapon = null;
         this.armor = null;
+
+        // Expose position and rotation directly
+        this.position = { x, y, z };
+        this.rotation = { x: qx, y: qy, z: qz };
     }
 
     getName() {
@@ -17,11 +24,21 @@ class Fighter extends ArenaObject {
     }
 
     getCurrentHealth() {
-        return this.currentHealth;
+        return this.health;
     }
 
     getMaxHealth() {
         return this.maxHealth;
+    }
+
+    setPosition(x, y, z) {
+        super.setPosition(x, y, z);
+        this.position = { x, y, z };
+    }
+
+    setRotation(x, y, z, w) {
+        super.setRotation(x, y, z, w);
+        this.rotation = { x, y, z };
     }
 
     equip(item) {
@@ -54,22 +71,22 @@ class Fighter extends ArenaObject {
             this.armor.takeDamage(damage);
         }
 
-        this.currentHealth = Math.max(0, this.currentHealth - actualDamage);
+        this.health = Math.max(0, this.health - actualDamage);
         return actualDamage;
     }
 
     heal(amount) {
-        const oldHealth = this.currentHealth;
-        this.currentHealth = Math.min(this.maxHealth, this.currentHealth + amount);
-        return this.currentHealth - oldHealth;
+        const oldHealth = this.health;
+        this.health = Math.min(this.maxHealth, this.health + amount);
+        return this.health - oldHealth;
     }
 
     isAlive() {
-        return this.currentHealth > 0;
+        return this.health > 0;
     }
 
     respawn() {
-        this.currentHealth = this.maxHealth;
+        this.health = this.maxHealth;
     }
 }
 

@@ -68,23 +68,26 @@ class GameServer {
     }
 
     handleNewConnection(connection) {
-        if (this.viewers.size >= this.maxViewers) {
+        if (this.players.size >= this.maxPlayers) {
             this.transport.send(connection, { type: 'error', message: 'Server is full' });
             this.transport.closeConnection(connection);
             return;
         }
 
-        const viewer = new Viewer(`Viewer${this.viewers.size + 1}`);
-        this.clients.set(connection, viewer);
-        this.viewers.add(viewer);
+        const fighter = new Fighter(`Player${this.players.size + 1}`);
+        const spawnPoint = this.arena.getMap().getRandomSpawnPoint();
+        fighter.setPosition(spawnPoint.x, spawnPoint.y, spawnPoint.z);
+
+        this.clients.set(connection, fighter);
+        this.players.add(fighter);
 
         this.transport.send(connection, { 
-            type: 'connectionType', 
-            role: 'viewer',
-            canBecomeFighter: this.players.size < this.maxPlayers
+            type: 'connected',
+            id: fighter.id,
+            map: this.arena.getMap()
         });
 
-        this.sendGameState(connection);
+        this.broadcastGameState();
     }
 
     handleMessage(connection, message) {
@@ -184,34 +187,44 @@ class GameServer {
             }
         });
     }
-    }
 
     sendGameState(client) {
+        console.log('Players:', this.players);
         const gameState = {
             type: 'gameState',
-            entities: Array.from(this.players).map(entity => ({
-                type: entity.constructor.name,
-                name: entity.getName(),
-                position: entity.getPosition(),
-                rotation: entity.getRotation(),
-                health: entity.getCurrentHealth()
-            }))
+            fighters: Array.from(this.players).map(fighter => ({
+                id: fighter.id,
+                x: fighter.position.x,
+                y: fighter.position.y,
+                z: fighter.position.z,
+                rx: fighter.rotation.x,
+                ry: fighter.rotation.y,
+                rz: fighter.rotation.z,
+                health: fighter.health
+            })),
+            map: this.arena.getMap()
         };
+        console.log('Sending game state:', gameState);
         this.transport.send(client, gameState);
     }
 
     broadcastGameState() {
+        console.log('Broadcasting game state to', this.clients.size, 'clients');
         const gameState = {
             type: 'gameState',
-            entities: Array.from(this.players).map(entity => ({
-                type: entity.constructor.name,
-                name: entity.getName(),
-                position: entity.getPosition(),
-                rotation: entity.getRotation(),
-                health: entity.getCurrentHealth()
-            }))
+            fighters: Array.from(this.players).map(fighter => ({
+                id: fighter.id,
+                x: fighter.position.x,
+                y: fighter.position.y,
+                z: fighter.position.z,
+                rx: fighter.rotation.x,
+                ry: fighter.rotation.y,
+                rz: fighter.rotation.z,
+                health: fighter.health
+            })),
+            map: this.arena.getMap()
         };
-
+        console.log('Broadcasting state:', gameState);
         this.transport.broadcast(gameState);
     }
 

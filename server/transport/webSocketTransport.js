@@ -2,20 +2,25 @@ const WebSocket = require('ws');
 const TransportLayer = require('./transportLayer');
 
 class WebSocketTransport extends TransportLayer {
-    constructor(port) {
+    constructor(port, httpServer) {
         super(port);
         this.server = null;
+        this.httpServer = httpServer;
+        this.connections = new Set();
     }
 
     start() {
-        this.server = new WebSocket.Server({ port: this.port });
+        this.server = new WebSocket.Server({ server: this.httpServer });
 
         this.server.on('connection', (ws) => {
+            this.connections.add(ws);
+
             ws.on('message', (message) => {
                 this._handleMessage(ws, message);
             });
 
             ws.on('close', () => {
+                this.connections.delete(ws);
                 this._handleDisconnection(ws);
             });
 
@@ -38,7 +43,7 @@ class WebSocketTransport extends TransportLayer {
 
     broadcast(data) {
         const message = JSON.stringify(data);
-        this.server.clients.forEach((client) => {
+        this.connections.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
                 client.send(message);
             }

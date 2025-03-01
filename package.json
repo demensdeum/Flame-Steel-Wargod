@@ -7,7 +7,8 @@
     "start": "node server/main.js"
   },
   "dependencies": {
-    "ws": "^8.16.0",
-    "dgram": "^1.0.1"
+    "dgram": "^1.0.1",
+    "express": "^4.21.2",
+    "ws": "^8.18.1"
   }
 }
