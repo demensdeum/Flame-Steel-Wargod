@@ -212,6 +212,14 @@ class Game {
         floor.position.set(0, 0, 0);
         this.scene.add(floor);
 
+        // Create ceiling
+        const ceilingGeometry = new THREE.PlaneGeometry(mapData.width, mapData.height);
+        const ceilingMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff }); // White
+        const ceiling = new THREE.Mesh(ceilingGeometry, ceilingMaterial);
+        ceiling.rotation.x = Math.PI / 2;
+        ceiling.position.set(0, 2, 0); // At wall height
+        this.scene.add(ceiling);
+
         // Count walls for instancing
         let wallCount = 0;
         for (let y = 0; y < mapData.height; y++) {
@@ -389,32 +397,64 @@ class Game {
         }
     }
 
+    canMoveTo(x, z) {
+        // Convert world to grid coordinates
+        const gridX = Math.floor(x + this.map.width/2);
+        const gridY = Math.floor(z + this.map.height/2);
+        
+        // Check bounds
+        if (gridX < 0 || gridX >= this.map.width || gridY < 0 || gridY >= this.map.height) {
+            return false;
+        }
+        
+        // Check if target cell is empty
+        return this.map.grid[gridY][gridX] === 0;
+    }
+
     updateMovement() {
         if (!this.controls.isLocked) return;
 
         const time = performance.now();
         const delta = (time - this.prevTime) / 1000;
+        const moveSpeed = 3.0;
 
-        this.velocity.x = 0;
-        this.velocity.z = 0;
+        // Get forward direction from quaternion
+        const forward = new THREE.Vector3(0, 0, -1);
+        forward.applyQuaternion(this.camera.quaternion);
+        forward.y = 0; // Keep movement horizontal
+        forward.normalize();
 
-        this.direction.z = Number(this.moveForward) - Number(this.moveBackward);
-        this.direction.x = Number(this.moveRight) - Number(this.moveLeft);
-        this.direction.normalize();
+        // Calculate right vector
+        const right = new THREE.Vector3(1, 0, 0);
+        right.applyQuaternion(this.camera.quaternion);
+        right.y = 0; // Keep movement horizontal
+        right.normalize();
 
-        const speed = 5.0;
-        if (this.moveForward || this.moveBackward) {
-            this.velocity.z -= this.direction.z * speed * delta;
+        let moveX = 0;
+        let moveZ = 0;
+
+        if (this.moveForward) {
+            moveX += forward.x * moveSpeed * delta;
+            moveZ += forward.z * moveSpeed * delta;
         }
-        if (this.moveLeft || this.moveRight) {
-            this.velocity.x -= this.direction.x * speed * delta;
+        if (this.moveBackward) {
+            moveX -= forward.x * moveSpeed * delta;
+            moveZ -= forward.z * moveSpeed * delta;
+        }
+        if (this.moveLeft) {
+            moveX -= right.x * moveSpeed * delta;
+            moveZ -= right.z * moveSpeed * delta;
+        }
+        if (this.moveRight) {
+            moveX += right.x * moveSpeed * delta;
+            moveZ += right.z * moveSpeed * delta;
         }
 
-        if (this.velocity.x !== 0 || this.velocity.z !== 0) {
-            this.controls.moveRight(-this.velocity.x);
-            this.controls.moveForward(-this.velocity.z);
-
-            // Send position update to server
+        this.camera.position.x += moveX;
+        this.camera.position.z += moveZ;
+        
+        // Send position update to server
+        if (moveX !== 0 || moveZ !== 0) {
             this.socket.send(JSON.stringify({
                 type: 'move',
                 x: this.camera.position.x + this.map.width/2,
@@ -423,7 +463,7 @@ class Game {
             }));
         }
 
-        this.prevTime = time;
+        this.prevTime = performance.now();
     }
 
     animate() {
