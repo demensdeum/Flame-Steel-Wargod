@@ -111,7 +111,7 @@ class Game {
         this.scene.add(floor);
 
         // Create walls
-        const wallGeometry = new THREE.BoxGeometry(0.8, 1.6, 0.8);
+        const wallGeometry = new THREE.BoxGeometry(0.8, 3.2, 0.8);
         const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 });
 
         for (let x = 0; x < mapData.width; x++) {
@@ -120,7 +120,7 @@ class Game {
                     const wall = new THREE.Mesh(wallGeometry, wallMaterial);
                     wall.position.set(
                         x - (mapData.width / 2),
-                        0.8, // Half of height
+                        1.6, // Half of height
                         y - (mapData.height / 2)
                     );
                     this.scene.add(wall);
