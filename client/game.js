@@ -507,75 +507,58 @@ class Game {
     }
 
     setupTouchControls() {
-        // Show mobile controls
-        document.getElementById('moveStick').style.display = 'block';
-        document.getElementById('lookStick').style.display = 'block';
-        document.getElementById('attackButton').style.display = 'block';
+        const touchControls = document.getElementById('touchControls');
+        const moveArea = document.getElementById('moveArea');
+        const lookArea = document.getElementById('lookArea');
+        touchControls.style.display = 'block';
 
-        // Movement stick
-        const moveStick = document.getElementById('moveStick');
-        const moveKnob = document.getElementById('moveKnob');
+        // Touch sensitivity settings
+        const moveSensitivity = 0.01;
+        const lookSensitivity = 0.005;
 
-        moveStick.addEventListener('touchstart', (e) => {
+        // Movement touch handling
+        moveArea.addEventListener('touchstart', (e) => {
             e.preventDefault();
             const touch = e.touches[0];
-            this.moveStickActive = true;
-            this.moveStickStartPos = { 
-                x: touch.clientX - moveKnob.offsetLeft,
-                y: touch.clientY - moveKnob.offsetTop
-            };
+            this.moveStartPos = { x: touch.clientX, y: touch.clientY };
+            this.moveActive = true;
         });
 
-        moveStick.addEventListener('touchmove', (e) => {
+        moveArea.addEventListener('touchmove', (e) => {
             e.preventDefault();
-            if (!this.moveStickActive) return;
+            if (!this.moveActive) return;
 
             const touch = e.touches[0];
-            const maxOffset = 30;
+            const deltaX = (touch.clientX - this.moveStartPos.x) * moveSensitivity;
+            const deltaY = (touch.clientY - this.moveStartPos.y) * moveSensitivity;
 
-            this.moveStickOffset = {
-                x: Math.max(-maxOffset, Math.min(maxOffset, touch.clientX - this.moveStickStartPos.x)),
-                y: Math.max(-maxOffset, Math.min(maxOffset, touch.clientY - this.moveStickStartPos.y))
-            };
-
-            moveKnob.style.transform = `translate(${this.moveStickOffset.x}px, ${this.moveStickOffset.y}px)`;
-
-            // Update movement flags
-            this.moveForward = this.moveStickOffset.y < -10;
-            this.moveBackward = this.moveStickOffset.y > 10;
-            this.moveLeft = this.moveStickOffset.x < -10;
-            this.moveRight = this.moveStickOffset.x > 10;
+            // Update movement flags based on touch position relative to start
+            this.moveForward = deltaY < -0.5;
+            this.moveBackward = deltaY > 0.5;
+            this.moveLeft = deltaX < -0.5;
+            this.moveRight = deltaX > 0.5;
         });
 
-        moveStick.addEventListener('touchend', () => {
-            this.moveStickActive = false;
-            this.moveStickOffset = { x: 0, y: 0 };
-            moveKnob.style.transform = '';
+        moveArea.addEventListener('touchend', () => {
+            this.moveActive = false;
             this.moveForward = this.moveBackward = this.moveLeft = this.moveRight = false;
         });
 
-        // Look stick
-        const lookStick = document.getElementById('lookStick');
-        const lookKnob = document.getElementById('lookKnob');
-        const lookSensitivity = 0.005;
-
-        lookStick.addEventListener('touchstart', (e) => {
+        // Look touch handling
+        lookArea.addEventListener('touchstart', (e) => {
             e.preventDefault();
             const touch = e.touches[0];
-            this.lookStickActive = true;
-            this.lookStickStartPos = { 
-                x: touch.clientX,
-                y: touch.clientY
-            };
+            this.lookStartPos = { x: touch.clientX, y: touch.clientY };
+            this.lookActive = true;
         });
 
-        lookStick.addEventListener('touchmove', (e) => {
+        lookArea.addEventListener('touchmove', (e) => {
             e.preventDefault();
-            if (!this.lookStickActive) return;
+            if (!this.lookActive) return;
 
             const touch = e.touches[0];
-            const deltaX = touch.clientX - this.lookStickStartPos.x;
-            const deltaY = touch.clientY - this.lookStickStartPos.y;
+            const deltaX = touch.clientX - this.lookStartPos.x;
+            const deltaY = touch.clientY - this.lookStartPos.y;
 
             // Update camera rotation
             this.camera.rotation.y -= deltaX * lookSensitivity;
@@ -583,7 +566,8 @@ class Game {
                 this.camera.rotation.x - deltaY * lookSensitivity
             ));
 
-            this.lookStickStartPos = { x: touch.clientX, y: touch.clientY };
+            // Update look start position
+            this.lookStartPos = { x: touch.clientX, y: touch.clientY };
 
             // Send rotation update
             this.socket.send(JSON.stringify({
@@ -595,17 +579,21 @@ class Game {
             }));
         });
 
-        lookStick.addEventListener('touchend', () => {
-            this.lookStickActive = false;
+        lookArea.addEventListener('touchend', () => {
+            this.lookActive = false;
         });
 
-        // Attack button
-        const attackButton = document.getElementById('attackButton');
-        attackButton.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            this.socket.send(JSON.stringify({
-                type: 'attack'
-            }));
+        // Double tap on right side for attack
+        let lastTap = 0;
+        lookArea.addEventListener('touchstart', (e) => {
+            const now = performance.now();
+            const timeDiff = now - lastTap;
+            if (timeDiff < 300) { // Double tap threshold
+                this.socket.send(JSON.stringify({
+                    type: 'attack'
+                }));
+            }
+            lastTap = now;
         });
     }
 
