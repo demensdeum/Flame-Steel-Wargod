@@ -14,15 +14,14 @@ class GameServer {
         this.port = port;
         this.maxPlayers = maxPlayers;
         this.maxViewers = maxViewers;
-        this.clients = new Map(); // Map of client -> Fighter or Viewer
-        this.players = new Set(); // Set of Fighter instances
-        this.viewers = new Set(); // Set of Viewer instances
+        this.clients = new Map();
+        this.players = new Set();
+        this.viewers = new Set();
         this.arena = new Area();
         this.transport = new TransportClass(port);
     }
 
     start() {
-        // Set up transport layer handlers
         this.transport.onConnection((client) => {
             console.log('New client connected');
             this.handleNewConnection(client);
@@ -36,32 +35,27 @@ class GameServer {
             this.handleDisconnection(client);
         });
 
-        // Start transport layer
         this.transport.start();
         console.log(`Game server started on port ${this.port}`);
     }
 
     handleNewConnection(connection) {
-        // Check if viewers limit is reached
         if (this.viewers.size >= this.maxViewers) {
             this.transport.send(connection, { type: 'error', message: 'Server is full' });
             this.transport.closeConnection(connection);
             return;
         }
 
-        // All new connections start as viewers
         const viewer = new Viewer(`Viewer${this.viewers.size + 1}`);
         this.clients.set(connection, viewer);
         this.viewers.add(viewer);
 
-        // Send connection info
         this.transport.send(connection, { 
             type: 'connectionType', 
             role: 'viewer',
             canBecomeFighter: this.players.size < this.maxPlayers
         });
 
-        // Send initial game state
         this.sendGameState(connection);
     }
 
@@ -103,7 +97,6 @@ class GameServer {
         const client = this.clients.get(connection);
         if (client) {
             if (client instanceof Fighter) {
-                this.arena.removeEntity(client);
                 this.players.delete(client);
             } else if (client instanceof Viewer) {
                 this.viewers.delete(client);
@@ -119,25 +112,21 @@ class GameServer {
     handleAttack(attacker, data) {
         if (!attacker.weapon) return;
 
-        // Get attacker's position and forward direction
         const attackerPos = attacker.getPosition();
         const attackerForward = MathUtils.quaternionToForward(attacker.getRotation());
         
-        // Create attack ray
         const rayOrigin = {
             x: attackerPos.x,
-            y: attackerPos.y + 1, // Adjust to roughly shoulder height
+            y: attackerPos.y + 1,
             z: attackerPos.z
         };
         
-        const targets = this.arena.getEntities()
-            .filter(entity => entity instanceof Fighter && entity !== attacker)
+        const targets = Array.from(this.players)
+            .filter(entity => entity !== attacker)
             .filter(target => {
-                // First check if target is within weapon range
                 const distance = attacker.getDistanceTo(target);
                 if (distance > attacker.weapon.getRange()) return false;
 
-                // Check ray intersection with target's bounding box
                 return MathUtils.rayBoxIntersection(
                     rayOrigin,
                     attackerForward,
@@ -155,21 +144,26 @@ class GameServer {
                     attacker: attacker.getName(),
                     target: target.getName(),
                     damage: actualDamage,
-                    position: target.getPosition() // Send hit position for effects
+                    position: target.getPosition()
                 });
+
+                if (!target.isAlive()) {
+                    this.respawnFighter(target);
+                }
             }
         });
+    }
     }
 
     sendGameState(client) {
         const gameState = {
             type: 'gameState',
-            entities: this.arena.getEntities().map(entity => ({
+            entities: Array.from(this.players).map(entity => ({
                 type: entity.constructor.name,
                 name: entity.getName(),
                 position: entity.getPosition(),
                 rotation: entity.getRotation(),
-                health: entity instanceof Fighter ? entity.getCurrentHealth() : null
+                health: entity.getCurrentHealth()
             }))
         };
         this.transport.send(client, gameState);
@@ -178,12 +172,12 @@ class GameServer {
     broadcastGameState() {
         const gameState = {
             type: 'gameState',
-            entities: this.arena.getEntities().map(entity => ({
+            entities: Array.from(this.players).map(entity => ({
                 type: entity.constructor.name,
                 name: entity.getName(),
                 position: entity.getPosition(),
                 rotation: entity.getRotation(),
-                health: entity instanceof Fighter ? entity.getCurrentHealth() : null
+                health: entity.getCurrentHealth()
             }))
         };
 
@@ -192,6 +186,18 @@ class GameServer {
 
     broadcastEvent(event) {
         this.transport.broadcast(event);
+    }
+
+    respawnFighter(fighter) {
+        const spawnPoint = this.arena.respawnFighter(fighter);
+
+        this.broadcastEvent({
+            type: 'respawn',
+            player: fighter.getName(),
+            position: spawnPoint
+        });
+
+        this.broadcastGameState();
     }
 
     convertViewerToFighter(connection, viewer) {
@@ -209,9 +215,10 @@ class GameServer {
 
         // Create new fighter
         const fighter = new Fighter(`Player${this.players.size + 1}`);
+        const spawnPoint = this.arena.getMap().getRandomSpawnPoint();
+        fighter.setPosition(spawnPoint.x, spawnPoint.y, spawnPoint.z);
         this.clients.set(connection, fighter);
         this.players.add(fighter);
-        this.arena.addEntity(fighter);
 
         // Notify client of role change
         this.transport.send(connection, { type: 'connectionType', role: 'player' });

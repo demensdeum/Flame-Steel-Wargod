@@ -1,21 +1,23 @@
+const CaveMapGenerator = require('./mapGenerators/caveMapGenerator');
+
 class Area {
-    constructor() {
-        this.entities = [];
+    constructor(map = new CaveMapGenerator().generate()) {
+        this.map = map;
     }
 
-    addEntity(entity) {
-        this.entities.push(entity);
+    getMap() {
+        return this.map;
     }
 
-    removeEntity(entity) {
-        const index = this.entities.indexOf(entity);
-        if (index > -1) {
-            this.entities.splice(index, 1);
-        }
+    respawnFighter(fighter) {
+        fighter.respawn();
+        const spawnPoint = this.map.getRandomSpawnPoint();
+        fighter.setPosition(spawnPoint.x, spawnPoint.y, spawnPoint.z);
+        return spawnPoint;
     }
 
-    getEntities() {
-        return this.entities;
+    isPositionValid(position) {
+        return this.map.isPositionValid(position);
     }
 }
 

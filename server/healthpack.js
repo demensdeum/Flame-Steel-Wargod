@@ -2,7 +2,7 @@ const ArenaObject = require('./arenaObject');
 
 class Healthpack extends ArenaObject {
     constructor(healingPower = 50, x = 0, y = 0, z = 0, qx = 0, qy = 0, qz = 0, qw = 1) {
-        super(x, y, z, 0.5, 0.5, 0.5, qx, qy, qz, qw); // smaller bounding box for healthpacks
+        super(x, y, z, 0.5, 0.5, 0.5, qx, qy, qz, qw);
         this.healingPower = healingPower;
         this.used = false;
     }
