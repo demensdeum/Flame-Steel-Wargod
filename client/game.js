@@ -66,8 +66,12 @@ class Game {
         blocker.style.color = 'white';
         blocker.style.fontSize = '24px';
         blocker.style.cursor = 'pointer';
-        blocker.style.zIndex = '999';
-        blocker.textContent = 'Click to Play';
+        blocker.style.zIndex = '999999';
+        blocker.style.touchAction = 'manipulation';
+        blocker.style.userSelect = 'none';
+        blocker.style.webkitUserSelect = 'none';
+        blocker.style.webkitTapHighlightColor = 'transparent';
+        blocker.textContent = this.isMobile ? 'Tap to Play' : 'Click to Play';
         document.body.appendChild(blocker);
 
         this.scene = new THREE.Scene();
@@ -92,11 +96,15 @@ class Game {
             }
         };
 
-        blocker.addEventListener('click', startGame);
-        blocker.addEventListener('touchend', (e) => {
+        const startGameHandler = (e) => {
             e.preventDefault();
+            e.stopPropagation();
             startGame();
-        });
+        };
+        
+        blocker.addEventListener('click', startGameHandler);
+        blocker.addEventListener('touchstart', startGameHandler, { passive: false });
+        blocker.addEventListener('touchend', startGameHandler, { passive: false });
 
         if (!this.isMobile) {
             this.controls.addEventListener('lock', () => {
@@ -512,16 +520,13 @@ class Game {
         const lookArea = document.getElementById('lookArea');
         touchControls.style.display = 'block';
 
-        // Touch sensitivity settings
-        const moveSensitivity = 0.01;
-        const lookSensitivity = 0.005;
-
         // Movement touch handling
         moveArea.addEventListener('touchstart', (e) => {
             e.preventDefault();
             const touch = e.touches[0];
             this.moveStartPos = { x: touch.clientX, y: touch.clientY };
             this.moveActive = true;
+            this.moveDirection = { x: 0, z: 0 };
         });
 
         moveArea.addEventListener('touchmove', (e) => {
@@ -529,19 +534,27 @@ class Game {
             if (!this.moveActive) return;
 
             const touch = e.touches[0];
-            const deltaX = (touch.clientX - this.moveStartPos.x) * moveSensitivity;
-            const deltaY = (touch.clientY - this.moveStartPos.y) * moveSensitivity;
+            const deltaX = touch.clientX - this.moveStartPos.x;
+            const deltaY = touch.clientY - this.moveStartPos.y;
+            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
-            // Update movement flags based on touch position relative to start
-            this.moveForward = deltaY < -0.5;
-            this.moveBackward = deltaY > 0.5;
-            this.moveLeft = deltaX < -0.5;
-            this.moveRight = deltaX > 0.5;
+            if (distance > 10) { // Small dead zone
+                // Normalize the movement vector
+                this.moveDirection.x = deltaX / distance;
+                this.moveDirection.z = deltaY / distance;
+
+                // Update movement flags based on normalized direction
+                this.moveForward = this.moveDirection.z < -0.1;
+                this.moveBackward = this.moveDirection.z > 0.1;
+                this.moveLeft = this.moveDirection.x < -0.1;
+                this.moveRight = this.moveDirection.x > 0.1;
+            }
         });
 
         moveArea.addEventListener('touchend', () => {
             this.moveActive = false;
             this.moveForward = this.moveBackward = this.moveLeft = this.moveRight = false;
+            this.moveDirection = { x: 0, z: 0 };
         });
 
         // Look touch handling
@@ -550,6 +563,8 @@ class Game {
             const touch = e.touches[0];
             this.lookStartPos = { x: touch.clientX, y: touch.clientY };
             this.lookActive = true;
+            this.lastDeltaX = 0;
+            this.lastDeltaY = 0;
         });
 
         lookArea.addEventListener('touchmove', (e) => {
@@ -560,15 +575,20 @@ class Game {
             const deltaX = touch.clientX - this.lookStartPos.x;
             const deltaY = touch.clientY - this.lookStartPos.y;
 
-            // Update camera rotation with higher sensitivity for mobile
-            const mobileLookSensitivity = 0.005;
-            this.camera.rotation.y -= deltaX * mobileLookSensitivity;
+            // Calculate frame delta (change since last frame)
+            const frameDeltaX = deltaX - this.lastDeltaX;
+            const frameDeltaY = deltaY - this.lastDeltaY;
+
+            // Apply smooth rotation with frame delta
+            const sensitivity = 0.003;
+            this.camera.rotation.y -= frameDeltaX * sensitivity;
             this.camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, 
-                this.camera.rotation.x - deltaY * mobileLookSensitivity
+                this.camera.rotation.x - frameDeltaY * sensitivity
             ));
 
-            // Update look start position for next frame
-            this.lookStartPos = { x: touch.clientX, y: touch.clientY };
+            // Store current deltas for next frame
+            this.lastDeltaX = deltaX;
+            this.lastDeltaY = deltaY;
 
             // Send rotation update
             this.socket.send(JSON.stringify({
@@ -584,17 +604,13 @@ class Game {
             this.lookActive = false;
         });
 
-        // Double tap on right side for attack
-        let lastTap = 0;
+        // Single tap to attack
         lookArea.addEventListener('touchstart', (e) => {
-            const now = performance.now();
-            const timeDiff = now - lastTap;
-            if (timeDiff < 300) { // Double tap threshold
+            if (e.touches.length === 1) { // Only if it's a single touch
                 this.socket.send(JSON.stringify({
                     type: 'attack'
                 }));
             }
-            lastTap = now;
         });
     }
 
