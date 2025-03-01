@@ -2,7 +2,7 @@ const ArenaObject = require('./arenaObject');
 
 class Weapon extends ArenaObject {
     constructor(name, damage, range, x = 0, y = 0, z = 0, qx = 0, qy = 0, qz = 0, qw = 1) {
-        super(x, y, z, qx, qy, qz, qw);
+        super(x, y, z, 0.5, 0.5, 0.5, qx, qy, qz, qw); // smaller bounding box for weapons
         this.name = name;
         this.damage = damage;
         this.range = range;

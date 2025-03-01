@@ -1,7 +1,12 @@
 class ArenaObject {
-    constructor(x = 0, y = 0, z = 0, qx = 0, qy = 0, qz = 0, qw = 1) {
+    constructor(x = 0, y = 0, z = 0, width = 1, height = 1, depth = 1, qx = 0, qy = 0, qz = 0, qw = 1) {
         this.position = { x, y, z };
         this.rotation = { x: qx, y: qy, z: qz, w: qw };
+        this.boundingBox = {
+            width,
+            height,
+            depth
+        };
     }
 
     setPosition(x, y, z) {

@@ -4,7 +4,7 @@ const ArenaObject = require('./arenaObject');
 
 class Fighter extends ArenaObject {
     constructor(name, maxHealth = 100, x = 0, y = 0, z = 0, qx = 0, qy = 0, qz = 0, qw = 1) {
-        super(x, y, z, qx, qy, qz, qw);
+        super(x, y, z, 1, 2, 1, qx, qy, qz, qw); // width=1, height=2, depth=1 for human-sized character
         this.name = name;
         this.maxHealth = maxHealth;
         this.currentHealth = maxHealth;

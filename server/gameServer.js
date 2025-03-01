@@ -1,6 +1,7 @@
 const WebSocket = require('ws');
 const Area = require('./area');
 const Fighter = require('./fighter');
+const MathUtils = require('./mathUtils');
 
 class GameServer {
     constructor(port = 8080) {
@@ -82,9 +83,34 @@ class GameServer {
     }
 
     handleAttack(attacker, data) {
+        if (!attacker.weapon) return;
+
+        // Get attacker's position and forward direction
+        const attackerPos = attacker.getPosition();
+        const attackerForward = MathUtils.quaternionToForward(attacker.getRotation());
+        
+        // Create attack ray
+        const rayOrigin = {
+            x: attackerPos.x,
+            y: attackerPos.y + 1, // Adjust to roughly shoulder height
+            z: attackerPos.z
+        };
+        
         const targets = this.arena.getEntities()
             .filter(entity => entity instanceof Fighter && entity !== attacker)
-            .filter(target => attacker.getDistanceTo(target) <= attacker.weapon?.getRange() || 0);
+            .filter(target => {
+                // First check if target is within weapon range
+                const distance = attacker.getDistanceTo(target);
+                if (distance > attacker.weapon.getRange()) return false;
+
+                // Check ray intersection with target's bounding box
+                return MathUtils.rayBoxIntersection(
+                    rayOrigin,
+                    attackerForward,
+                    target.getPosition(),
+                    target.boundingBox
+                );
+            });
 
         targets.forEach(target => {
             const damage = attacker.attack(target);
@@ -94,7 +120,8 @@ class GameServer {
                     type: 'attack',
                     attacker: attacker.getName(),
                     target: target.getName(),
-                    damage: actualDamage
+                    damage: actualDamage,
+                    position: target.getPosition() // Send hit position for effects
                 });
             }
         });
