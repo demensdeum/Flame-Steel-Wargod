@@ -104,14 +104,14 @@ class Game {
         this.walls.clear();
 
         // Create floor
-        const floorGeometry = new THREE.PlaneGeometry(mapData.width * mapData.cellSize, mapData.height * mapData.cellSize);
+        const floorGeometry = new THREE.PlaneGeometry(mapData.width, mapData.height);
         const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 });
         const floor = new THREE.Mesh(floorGeometry, floorMaterial);
         floor.rotation.x = -Math.PI / 2;
         this.scene.add(floor);
 
         // Create walls
-        const wallGeometry = new THREE.BoxGeometry(mapData.cellSize, mapData.cellSize, mapData.cellSize);
+        const wallGeometry = new THREE.BoxGeometry(0.8, 1.6, 0.8);
         const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 });
 
         for (let x = 0; x < mapData.width; x++) {
@@ -119,9 +119,9 @@ class Game {
                 if (mapData.grid[y][x] === 1) {  // Wall
                     const wall = new THREE.Mesh(wallGeometry, wallMaterial);
                     wall.position.set(
-                        (x * mapData.cellSize) - (mapData.width * mapData.cellSize / 2),
-                        mapData.cellSize / 2,
-                        (y * mapData.cellSize) - (mapData.height * mapData.cellSize / 2)
+                        x - (mapData.width / 2),
+                        0.8, // Half of height
+                        y - (mapData.height / 2)
                     );
                     this.scene.add(wall);
                     this.walls.add(wall);
@@ -140,7 +140,7 @@ class Game {
             
             if (!cube) {
                 // Create new fighter cube
-                const geometry = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+                const geometry = new THREE.BoxGeometry(0.8, 1.6, 0.8);
                 const material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
                 cube = new THREE.Mesh(geometry, material);
                 this.scene.add(cube);
@@ -149,9 +149,9 @@ class Game {
 
             // Update position
             cube.position.set(
-                fighter.x - (this.map.width * this.map.cellSize / 2),
-                fighter.y,
-                fighter.z - (this.map.height * this.map.cellSize / 2)
+                fighter.x / this.map.cellSize - (this.map.width / 2),
+                fighter.y / this.map.cellSize,
+                fighter.z / this.map.cellSize - (this.map.height / 2)
             );
 
             // Update rotation
