@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 import GameMap from './gameMap.js';
 import HUD from './hud.js';
+import { config } from './config.js';
 
 class Game {
     // Helper function to validate PNG data
@@ -71,7 +72,20 @@ class Game {
         blocker.style.userSelect = 'none';
         blocker.style.webkitUserSelect = 'none';
         blocker.style.webkitTapHighlightColor = 'transparent';
-        blocker.textContent = this.isMobile ? 'Tap to Play' : 'Click to Play';
+        blocker.style.flexDirection = 'column';
+        
+        // Create game title and version
+        const title = document.createElement('div');
+        title.textContent = this.isMobile ? 'Tap to Play' : 'Click to Play';
+        title.style.marginBottom = '20px';
+        
+        const version = document.createElement('div');
+        version.textContent = config.fullVersion();
+        version.style.fontSize = '14px';
+        version.style.opacity = '0.7';
+        
+        blocker.appendChild(title);
+        blocker.appendChild(version);
         document.body.appendChild(blocker);
 
         this.scene = new THREE.Scene();
