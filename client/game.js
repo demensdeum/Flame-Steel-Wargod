@@ -351,25 +351,33 @@ class Game {
     canMoveInDirection(x, z) {
         // Add padding to avoid getting too close to walls
         const padding = 0.3;
+        const stepSize = 0.2; // Size of the step to check ahead
         
-        // Check center and padded points
-        const checkPoints = [
-            [x, z],  // Center
-            [x + padding, z],  // Right
-            [x - padding, z],  // Left
-            [x, z + padding],  // Front
-            [x, z - padding]   // Back
+        // Check both current position and one step ahead
+        const positions = [
+            [x, z],  // Current position
+            [x + Math.sign(x - this.camera.position.x) * stepSize, z + Math.sign(z - this.camera.position.z) * stepSize]  // One step ahead
         ];
         
-        // If any check point hits a wall, block movement
-        return checkPoints.every(([checkX, checkZ]) => {
-            // Convert world to grid coordinates
-            const futureX = checkX + this.map.width/2;
-            const futureZ = checkZ + this.map.height/2;
-            const gridX = Math.floor(futureX);
-            const gridZ = Math.floor(futureZ);
+        // For each position, check center and padded points
+        return positions.every(([posX, posZ]) => {
+            const checkPoints = [
+                [posX, posZ],  // Center
+                [posX + padding, posZ],  // Right
+                [posX - padding, posZ],  // Left
+                [posX, posZ + padding],  // Front
+                [posX, posZ - padding]   // Back
+            ];
             
-            return this.map.isEmptyCell(gridX, gridZ);
+            return checkPoints.every(([checkX, checkZ]) => {
+                // Convert world to grid coordinates
+                const futureX = checkX + this.map.width/2;
+                const futureZ = checkZ + this.map.height/2;
+                const gridX = Math.floor(futureX);
+                const gridZ = Math.floor(futureZ);
+                
+                return this.map.isEmptyCell(gridX, gridZ);
+            });
         });
     }
 
