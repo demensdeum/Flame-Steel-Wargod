@@ -1,6 +1,6 @@
 # Flame Steel: Wargod
 
-🎮 A retro-style multiplayer arena shooter inspired by Wolfenstein 3D!
+🎮 A retro-style multiplayer arena shooter!
 
 ## [Play Online Demo](http://tinydemens1.vps.webdock.cloud:3000/)
 
