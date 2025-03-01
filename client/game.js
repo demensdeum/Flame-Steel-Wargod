@@ -540,6 +540,7 @@ class Game {
             const touch = e.touches[0];
             this.moveStartPos = { x: touch.clientX, y: touch.clientY };
             this.moveActive = true;
+            console.log('Touch start on move area');
         });
 
         moveArea.addEventListener('touchmove', (e) => {
@@ -549,30 +550,36 @@ class Game {
             const touch = e.touches[0];
             const deltaX = touch.clientX - this.moveStartPos.x;
             const deltaY = touch.clientY - this.moveStartPos.y;
-            const moveDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
-            // Only update movement if touch is in left half of screen
-            if (touch.clientX < window.innerWidth / 2) {
-                // Clear all movement flags first
-                this.moveForward = this.moveBackward = this.moveLeft = this.moveRight = false;
+            // Reset all movement
+            this.moveForward = this.moveBackward = this.moveLeft = this.moveRight = false;
 
-                if (moveDistance > 20) { // Dead zone
-                    // Normalize deltas
-                    const normalizedX = deltaX / moveDistance;
-                    const normalizedY = deltaY / moveDistance;
+            // Simple threshold-based movement
+            const threshold = 30; // pixels
 
-                    // Set movement flags based on normalized direction
-                    if (normalizedY < -0.5) this.moveForward = true;
-                    if (normalizedY > 0.5) this.moveBackward = true;
-                    if (normalizedX < -0.5) this.moveLeft = true;
-                    if (normalizedX > 0.5) this.moveRight = true;
-                }
+            // Vertical movement
+            if (deltaY < -threshold) {
+                this.moveForward = true;
+                console.log('Moving forward');
+            } else if (deltaY > threshold) {
+                this.moveBackward = true;
+                console.log('Moving backward');
+            }
+
+            // Horizontal movement
+            if (deltaX < -threshold) {
+                this.moveLeft = true;
+                console.log('Moving left');
+            } else if (deltaX > threshold) {
+                this.moveRight = true;
+                console.log('Moving right');
             }
         });
 
         moveArea.addEventListener('touchend', () => {
             this.moveActive = false;
             this.moveForward = this.moveBackward = this.moveLeft = this.moveRight = false;
+            console.log('Touch end on move area');
         });
 
         // Look touch handling

@@ -2,6 +2,7 @@ export default class HUD {
     constructor() {
         this.container = document.createElement('div');
         this.container.style.position = 'absolute';
+        this.container.style.pointerEvents = 'none';
         this.container.style.bottom = '20px';
         this.container.style.left = '20px';
         this.container.style.color = '#ffffff';
