@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import FirstPersonControls from './firstPersonControls';
 import SceneManager from './sceneManager';
 import GameMap from './gameMap';
 import HUD from './hud';
@@ -16,7 +16,7 @@ export default class Game {
     private scene: THREE.Scene;
     private camera: THREE.PerspectiveCamera;
     private renderer: THREE.WebGLRenderer;
-    private controls: OrbitControls;
+    private controls: FirstPersonControls;
     private sceneManager: SceneManager | null;
     private gameMap: GameMap | null;
     private hud: HUD;
@@ -48,14 +48,9 @@ export default class Game {
             this.renderer.shadowMap.enabled = true;
             document.body.appendChild(this.renderer.domElement);
             
-            // Initialize controls
-            this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-            this.controls.enableDamping = true;
-            this.controls.dampingFactor = 0.05;
-            this.controls.screenSpacePanning = false;
-            this.controls.minDistance = 5;
-            this.controls.maxDistance = 50;
-            this.controls.maxPolarAngle = Math.PI / 2;
+            // Initialize first-person controls
+            this.controls = new FirstPersonControls(this.camera, this.renderer.domElement);
+            this.setupMovementCallback();
             
             // Initialize game state
             this.gameMap = null;
@@ -193,39 +188,36 @@ export default class Game {
             this.camera.updateProjectionMatrix();
             this.renderer.setSize(window.innerWidth, window.innerHeight);
         });
-        
-        document.addEventListener('keydown', (event) => {
+    }
+
+    private setupMovementCallback(): void {
+        this.controls.setMoveCallback((movement) => {
             if (!this.gameMap || !this.sceneManager) return;
             
             const fighter = this.sceneManager.getFighter(this.playerId);
             if (!fighter) return;
             
-            const movement = { x: 0, z: 0 };
+            const gridX = Math.round((fighter.position.x / this.gameMap.cellSize) + this.gameMap.width/2);
+            const gridZ = Math.round((fighter.position.z / this.gameMap.cellSize) + this.gameMap.height/2);
             
-            switch (event.key) {
-                case 'w': movement.z = -1; break;
-                case 's': movement.z = 1; break;
-                case 'a': movement.x = -1; break;
-                case 'd': movement.x = 1; break;
-            }
+            const newGridX = gridX + Math.round(movement.x);
+            const newGridZ = gridZ + Math.round(movement.z);
             
-            if (movement.x !== 0 || movement.z !== 0) {
-                const gridX = Math.round((fighter.position.x / this.gameMap.cellSize) + this.gameMap.width/2);
-                const gridZ = Math.round((fighter.position.z / this.gameMap.cellSize) + this.gameMap.height/2);
-                
-                const newGridX = gridX + movement.x;
-                const newGridZ = gridZ + movement.z;
-                
-                if (this.gameMap.isEmptyCell(newGridX, newGridZ)) {
-                    const message: ClientMessage = {
-                        type: 'objectMoved',
-                        objectId: this.playerId,
-                        x: newGridX,
-                        z: newGridZ
-                    };
-                    this.ws.send(JSON.stringify(message));
-                }
+            if (this.gameMap.isEmptyCell(newGridX, newGridZ)) {
+                const message: ClientMessage = {
+                    type: 'objectMoved',
+                    objectId: this.playerId,
+                    x: newGridX,
+                    z: newGridZ
+                };
+                this.ws.send(JSON.stringify(message));
             }
+        });
+        
+        window.addEventListener('resize', () => {
+            this.camera.aspect = window.innerWidth / window.innerHeight;
+            this.camera.updateProjectionMatrix();
+            this.renderer.setSize(window.innerWidth, window.innerHeight);
         });
     }
     
@@ -421,7 +413,7 @@ export default class Game {
             if (this.sceneManager) {
                 this.sceneManager.updateArmorCubes(currentTime);
             }
-            this.controls.update();
+            // Controls are handled by FirstPersonControls class
             this.lastUpdateTime = currentTime;
         }
         

@@ -99,8 +99,18 @@
             font-size: 18px;
             opacity: 0.8;
             max-width: 600px;
+            margin: 0 auto 20px auto;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        #buildChanges {
+            font-size: 14px;
+            color: #ffa500;
+            max-width: 600px;
             margin: 0 auto;
             text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+            font-family: monospace;
+            line-height: 1.4;
         }
 
         #playInstructions {
@@ -153,6 +163,12 @@
         <div id="buildInfo">
             <div id="buildName">Flame Steel: Wargod</div>
             <div id="buildDescription">v1.0.0 - Multiplayer Arena Combat</div>
+            <div id="buildChanges">
+                [NEW] First-person camera controls<br>
+                [NEW] Tactical cover system<br>
+                [NEW] Armor pickup points<br>
+                [FIX] Mouse look sensitivity
+            </div>
         </div>
         <button id="playButton">Click to Play</button>
         <div id="playInstructions">
