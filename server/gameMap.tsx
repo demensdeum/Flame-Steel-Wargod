@@ -47,30 +47,32 @@ export default class GameMap {
         return this.worldHeight;
     }
 
-    public setCell(pos: WorldPosition, value: number): void {
-        const gridPos = this.coordinates.worldToGrid(pos);
-        if (this.coordinates.isValidGridPosition(gridPos)) {
-            this.grid[gridPos.z][gridPos.x] = value;
+    public setCell(pos: GridPosition, value: number): void {
+        if (this.isValidGridPosition(pos)) {
+            this.grid[pos.z][pos.x] = value;
         }
     }
 
-    public isEmptyCell(pos: WorldPosition): boolean {
-        const gridPos = this.coordinates.worldToGrid(pos);
-        if (!this.coordinates.isValidGridPosition(gridPos)) {
+    public isEmptyCell(pos: GridPosition): boolean {
+        if (!this.isValidGridPosition(pos)) {
             return false;
         }
-        return this.grid[gridPos.z][gridPos.x] === 0;
+        return this.grid[pos.z][pos.x] === 0;
     }
 
-    public addArmorSpawn(pos: WorldPosition): void {
+    public addArmorSpawn(pos: GridPosition): void {
         if (this.isEmptyCell(pos)) {
             const spawn: ArmorSpawn = {
                 id: uuidv4(),
-                x: pos.x,
-                z: pos.z
+                x: pos.x * this.cellSize,
+                z: pos.z * this.cellSize
             };
             this.armorSpawns.push(spawn);
         }
+    }
+
+    private isValidGridPosition(pos: GridPosition): boolean {
+        return pos.x >= 0 && pos.x < this.width && pos.z >= 0 && pos.z < this.height;
     }
 
     public getArmorSpawns(): ArmorSpawn[] {

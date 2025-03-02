@@ -10,6 +10,8 @@
             -webkit-touch-callout: none;
             -webkit-user-select: none;
             user-select: none;
+            background: #000;
+            font-family: 'Arial', sans-serif;
         }
         
         #version {
@@ -22,7 +24,93 @@
             z-index: 100001;
             pointer-events: none;
         }
-        canvas { display: block; }
+        
+        canvas { 
+            display: block; 
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        
+        canvas.visible {
+            opacity: 1;
+        }
+        
+        #playOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.85)), url('/textures/cover.jpg');
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100002;
+            cursor: pointer;
+            transition: opacity 0.5s ease;
+        }
+        
+        #playOverlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        #playButton {
+            padding: 20px 40px;
+            font-size: 24px;
+            background: #ff3e00;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s ease, background-color 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+        }
+        
+        #playButton:hover {
+            background: #ff5722;
+            transform: scale(1.05);
+        }
+        
+        #buildInfo {
+            position: absolute;
+            top: 20px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            color: #fff;
+        }
+        
+        #buildName {
+            font-size: 48px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        
+        #buildDescription {
+            font-size: 18px;
+            opacity: 0.8;
+            max-width: 600px;
+            margin: 0 auto;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        #playInstructions {
+            color: #fff;
+            text-align: center;
+            max-width: 600px;
+            padding: 0 20px;
+            font-size: 16px;
+            line-height: 1.6;
+        }
         
         #touchControls {
             position: fixed;
@@ -61,11 +149,63 @@
     </style>
 </head>
 <body>
+    <div id="playOverlay">
+        <div id="buildInfo">
+            <div id="buildName">Flame Steel: Wargod</div>
+            <div id="buildDescription">v1.0.0 - Multiplayer Arena Combat</div>
+        </div>
+        <button id="playButton">Click to Play</button>
+        <div id="playInstructions">
+            <p>Use WASD to move, mouse to look around.<br>Take cover behind walls and collect armor to survive.</p>
+        </div>
+    </div>
     <div id="touchControls">
         <div id="moveArea"></div>
         <div id="lookArea"></div>
     </div>
     <div id="version"></div>
-    <script type="module" src="/game.tsx"></script>
+    <script type="module">
+        import Game from '/game.tsx';
+        
+        const playOverlay = document.getElementById('playOverlay');
+        const playButton = document.getElementById('playButton');
+        
+        function startGame() {
+            try {
+                console.log('Starting game initialization...');
+                window.game = new Game();
+                
+                // Hide overlay with animation
+                playOverlay.classList.add('hidden');
+                
+                // Show the game canvas
+                setTimeout(() => {
+                    const canvas = document.querySelector('canvas');
+                    if (canvas) {
+                        canvas.classList.add('visible');
+                    }
+                }, 100);
+                
+                // Lock pointer for FPS controls
+                document.body.requestPointerLock();
+                
+            } catch (error) {
+                console.error('Failed to initialize game:', error);
+                playButton.textContent = 'Error - Try Again';
+                playOverlay.classList.remove('hidden');
+            }
+        }
+        
+        playButton.addEventListener('click', startGame);
+        
+        // Handle pointer lock change
+        document.addEventListener('pointerlockchange', () => {
+            if (!document.pointerLockElement) {
+                // Show overlay when game is paused
+                playButton.textContent = 'Resume Game';
+                playOverlay.classList.remove('hidden');
+            }
+        });
+    </script>
 </body>
 </html>

@@ -57,11 +57,25 @@ export default class GameServer {
             
             this.fighters.set(clientId, fighter);
             
-            // Send map data
-            ws.send(JSON.stringify({
-                type: 'mapData',
-                data: this.gameMap.toJSON()
-            }));
+            // Send initial game data including map and player ID
+            const mapData = this.gameMap.toJSON();
+            const initData = {
+                type: 'initGame',
+                playerId: clientId,
+                mapData: {
+                    ...mapData,
+                    // Add fixed armor spawns in grid coordinates
+                    armorSpawns: [
+                        { id: 'armor1', x: Math.floor(this.gameMap.getWidth() * 0.25), z: Math.floor(this.gameMap.getHeight() * 0.25) },
+                        { id: 'armor2', x: Math.floor(this.gameMap.getWidth() * 0.75), z: Math.floor(this.gameMap.getHeight() * 0.75) },
+                        { id: 'armor3', x: Math.floor(this.gameMap.getWidth() * 0.25), z: Math.floor(this.gameMap.getHeight() * 0.75) },
+                        { id: 'armor4', x: Math.floor(this.gameMap.getWidth() * 0.75), z: Math.floor(this.gameMap.getHeight() * 0.25) }
+                    ]
+                }
+            };
+            
+            console.log('Sending init data:', initData);
+            ws.send(JSON.stringify(initData));
             
             // Send initial game state
             this.broadcastGameState();
