@@ -3,6 +3,8 @@ import CameraControls from './cameraControls.js';
 import GameMap from './gameMap.js';
 import HUD from './hud.js';
 import { config } from './config.js';
+
+const CELL_SIZE = 64; // Grid cell size in pixels
 import Cover from './cover.js';
 
 class Game {
@@ -51,6 +53,18 @@ class Game {
                 this.controls.lock();
             }
         });
+
+        // Create debug map canvas
+        this.debugMapCanvas = document.createElement('canvas');
+        this.debugMapCanvas.style.position = 'fixed';
+        this.debugMapCanvas.style.top = '10px';
+        this.debugMapCanvas.style.right = '10px';
+        this.debugMapCanvas.style.width = '200px';
+        this.debugMapCanvas.style.height = '200px';
+        this.debugMapCanvas.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        this.debugMapCanvas.style.border = '1px solid white';
+        this.debugMapCanvas.style.zIndex = '1000';
+        document.body.appendChild(this.debugMapCanvas);
 
         this.scene = new THREE.Scene();
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -168,26 +182,31 @@ class Game {
                         
                         if (!cube) {
                             // Create new armor cube
-                            cube = new THREE.Mesh(this.armorGeometry, this.armorMaterial);
-                            cube.scale.set(0.8, 0.8, 0.8);
+                            cube = new THREE.Mesh(this.armorGeometry, this.armorMaterial.clone());
+                            cube.scale.set(1.5, 1.5, 1.5);
                             cube.userData.id = armorData.id;
-                            this.scene.add(cube);
                             this.armorCubes.push(cube);
+                            this.scene.add(cube);
                         }
                         
                         // Update position and properties
                         const pos = armorData.position;
-                        cube.position.set(
-                            pos.x - this.map.width/2 + 0.5,
-                            pos.y,
-                            pos.z - this.map.height/2 + 0.5
-                        );
+                        // Store original coordinates for grid calculation
+                        cube.userData.originalX = pos.x;
+                        cube.userData.originalZ = pos.z;
+                        // Convert from grid coordinates to scene coordinates
+                        const sceneX = (pos.x / CELL_SIZE) - this.map.width/2 + 0.5;
+                        const sceneY = pos.y;
+                        const sceneZ = (pos.z / CELL_SIZE) - this.map.height/2 + 0.5;
+                        
+                        cube.position.set(sceneX, sceneY, sceneZ);
                         cube.userData.defense = armorData.defense;
                     });
                     
                     // Remove inactive armor cubes
                     this.armorCubes = this.armorCubes.filter(cube => {
                         if (!activeArmorIds.has(cube.userData.id)) {
+                            console.log('Removing armor cube:', cube.userData.id);
                             this.scene.remove(cube);
                             return false;
                         }
@@ -196,8 +215,9 @@ class Game {
                 }
                 
                 // If this player picked up armor, update HUD
-                if (data.fighterId === this.playerId) {
-                    this.armor = data.armorAmount;
+                if (data.playerId === this.playerId && data.armor !== undefined) {
+                    console.log('Player picked up armor:', data.armor);
+                    this.armor = data.armor;
                     this.hud.update(this.health, this.currentWeapon, this.armor, this.fighters.size + 1);
                 }
                 break;
@@ -271,10 +291,13 @@ class Game {
                 
                 // Update position and properties
                 const pos = armorData.position;
+                // Store original coordinates for grid calculation
+                cube.userData.originalX = pos.x;
+                cube.userData.originalZ = pos.z;
                 // Convert from grid coordinates to scene coordinates
-                const sceneX = (pos.x / 64) - mapData.width/2 + 0.5;
+                const sceneX = (pos.x / CELL_SIZE) - mapData.width/2 + 0.5;
                 const sceneY = pos.y;
-                const sceneZ = (pos.z / 64) - mapData.height/2 + 0.5;
+                const sceneZ = (pos.z / CELL_SIZE) - mapData.height/2 + 0.5;
                 
                 cube.position.set(sceneX, sceneY, sceneZ);
                 console.log('Armor position conversion:', {
@@ -438,9 +461,9 @@ class Game {
 
                 // Update position - convert from server coordinates to world coordinates
                 cube.position.set(
-                    (fighter.x / this.map.cellSize) - this.map.width/2 + 0.5,
+                    (fighter.x / CELL_SIZE) - this.map.width/2 + 0.5,
                     1,
-                    (fighter.z / this.map.cellSize) - this.map.height/2 + 0.5
+                    (fighter.z / CELL_SIZE) - this.map.height/2 + 0.5
                 );
 
                 // Update rotation from rx, ry, rz
@@ -573,14 +596,84 @@ class Game {
         });
     }
 
+    checkArmorPickup(serverX, serverZ) {
+        // Convert server coordinates to grid coordinates
+        const gridX = Math.floor(serverX / CELL_SIZE);
+        const gridZ = Math.floor(serverZ / CELL_SIZE);
+
+        console.log('Checking armor pickup:', {
+            player: {
+                server: {x: serverX, z: serverZ},
+                grid: {x: gridX, z: gridZ}
+            },
+            numArmorCubes: this.armorCubes.length
+        });
+
+        // Check each armor cube
+        this.armorCubes.forEach(cube => {
+            // Get cube's grid coordinates from stored original position
+            const cubeGridX = Math.floor(cube.userData.originalX / CELL_SIZE);
+            const cubeGridZ = Math.floor(cube.userData.originalZ / CELL_SIZE);
+
+            console.log('Checking armor cube:', {
+                fighter: {
+                    server: {x: serverX, z: serverZ},
+                    grid: {x: gridX, z: gridZ},
+                    scene: {
+                        x: this.camera.position.x,
+                        y: this.camera.position.y,
+                        z: this.camera.position.z
+                    }
+                },
+                cube: {
+                    id: cube.userData.id,
+                    server: {
+                        x: cube.userData.originalX,
+                        z: cube.userData.originalZ
+                    },
+                    grid: {x: cubeGridX, z: cubeGridZ},
+                    scene: {
+                        x: cube.position.x,
+                        y: cube.position.y,
+                        z: cube.position.z
+                    }
+                },
+                match: {
+                    x: gridX === cubeGridX,
+                    z: gridZ === cubeGridZ,
+                    both: gridX === cubeGridX && gridZ === cubeGridZ
+                }
+            });
+
+            // If in same grid cell
+            if (gridX === cubeGridX && gridZ === cubeGridZ) {
+                console.log('Armor pickup!', {
+                    fighter: {x: gridX, z: gridZ},
+                    cube: {x: cubeGridX, z: cubeGridZ},
+                    armorId: cube.userData.id
+                });
+
+                // Send armor pickup event to server
+                this.socket.send(JSON.stringify({
+                    type: 'armorPickup',
+                    armorId: cube.userData.id
+                }));
+            }
+        });
+    }
+
     updateMovement() {
         // Get current position
         const pos = this.camera.position;
         
-        // Send position update to server
-        const serverX = (pos.x + this.map.width/2) * this.map.cellSize;
-        const serverZ = (pos.z + this.map.height/2) * this.map.cellSize;
+        // Convert scene coordinates to server coordinates
+        const serverX = (pos.x + this.map.width/2) * CELL_SIZE;
+        const serverZ = (pos.z + this.map.height/2) * CELL_SIZE;
         
+        // Check for armor pickup
+        this.checkArmorPickup(serverX, serverZ);
+
+        // Send position update to server
         this.socket.send(JSON.stringify({
             type: 'move',
             x: serverX,
@@ -648,6 +741,95 @@ class Game {
         console.log('========================');
     }
 
+    updateDebugMap() {
+        if (!this.map) return;
+        
+        const canvas = this.debugMapCanvas;
+        const ctx = canvas.getContext('2d');
+        const cellSize = 10; // Size of each grid cell in pixels
+        
+        // Set canvas size to match grid
+        canvas.width = this.map.width * cellSize;
+        canvas.height = this.map.height * cellSize + 40; // Extra space for debug info
+        
+        // Clear canvas
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw grid lines
+        ctx.strokeStyle = 'rgba(50, 50, 50, 0.5)';
+        for (let x = 0; x <= this.map.width; x++) {
+            ctx.beginPath();
+            ctx.moveTo(x * cellSize, 0);
+            ctx.lineTo(x * cellSize, this.map.height * cellSize);
+            ctx.stroke();
+        }
+        for (let y = 0; y <= this.map.height; y++) {
+            ctx.beginPath();
+            ctx.moveTo(0, y * cellSize);
+            ctx.lineTo(this.map.width * cellSize, y * cellSize);
+            ctx.stroke();
+        }
+        
+        // Draw walls
+        for (let y = 0; y < this.map.height; y++) {
+            for (let x = 0; x < this.map.width; x++) {
+                if (this.map.grid[y][x] === 1) {
+                    ctx.fillStyle = 'rgba(128, 128, 128, 0.5)';
+                    ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                }
+            }
+        }
+        
+        // Draw armor cubes
+        this.armorCubes.forEach(cube => {
+            const gridX = Math.floor(cube.userData.originalX / CELL_SIZE);
+            const gridZ = Math.floor(cube.userData.originalZ / CELL_SIZE);
+            
+            // Draw cube background
+            ctx.fillStyle = 'rgba(255, 0, 255, 0.3)';
+            ctx.fillRect(gridX * cellSize, gridZ * cellSize, cellSize, cellSize);
+            
+            // Draw cube border
+            ctx.strokeStyle = 'magenta';
+            ctx.strokeRect(gridX * cellSize, gridZ * cellSize, cellSize, cellSize);
+            
+            // Draw cube ID
+            ctx.fillStyle = 'white';
+            ctx.font = '8px monospace';
+            ctx.fillText(cube.userData.id.split('_')[1], gridX * cellSize + 2, gridZ * cellSize + 8);
+        });
+        
+        // Draw player position
+        const playerX = Math.floor((this.camera.position.x + this.map.width/2) * CELL_SIZE / CELL_SIZE);
+        const playerZ = Math.floor((this.camera.position.z + this.map.height/2) * CELL_SIZE / CELL_SIZE);
+        
+        // Draw player circle
+        ctx.fillStyle = 'lime';
+        ctx.beginPath();
+        ctx.arc(playerX * cellSize + cellSize/2, playerZ * cellSize + cellSize/2, cellSize/3, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Draw player direction
+        const angle = Math.atan2(this.camera.rotation.x, this.camera.rotation.z);
+        ctx.beginPath();
+        ctx.moveTo(playerX * cellSize + cellSize/2, playerZ * cellSize + cellSize/2);
+        ctx.lineTo(
+            playerX * cellSize + cellSize/2 + Math.cos(angle) * cellSize,
+            playerZ * cellSize + cellSize/2 + Math.sin(angle) * cellSize
+        );
+        ctx.strokeStyle = 'lime';
+        ctx.stroke();
+        
+        // Draw debug info
+        const mapHeight = this.map.height * cellSize;
+        ctx.fillStyle = 'white';
+        ctx.font = '10px monospace';
+        ctx.fillText(`Grid: ${playerX},${playerZ}`, 5, mapHeight + 12);
+        ctx.fillText(`Scene: ${this.camera.position.x.toFixed(1)},${this.camera.position.z.toFixed(1)}`, 5, mapHeight + 24);
+        ctx.fillText(`Armor: ${this.armor}`, 5, mapHeight + 36);
+    }
+
     animate() {
         requestAnimationFrame(() => this.animate());
         
@@ -664,6 +846,8 @@ class Game {
             this.controls.update((x, z) => this.canMoveTo(x, z));
             // Update server with new position
             this.updateMovement();
+            // Update debug map
+            this.updateDebugMap();
         }
         
         // Print debug every 2 seconds

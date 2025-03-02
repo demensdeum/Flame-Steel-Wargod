@@ -219,28 +219,37 @@ class GameServer {
             console.log('Fighter picked up armor:', {
                 fighter: fighter.id,
                 armor: armor.getName(),
-                position: armor.getPosition()
+                position: armor.getPosition(),
+                defense: armor.getDefense()
             });
 
             // Remove armor from arena
             this.arena.removeArmor(armor.getName());
 
             // Update fighter's armor
+            if (!fighter.armor) fighter.armor = 0;
             fighter.armor += armor.getDefense();
 
-            // Broadcast pickup event
+            // Get updated armor objects list
+            const armorObjects = this.arena.getArmorObjects().map(a => ({
+                id: a.getName(),
+                position: a.getPosition(),
+                defense: a.getDefense()
+            }));
+
+            console.log('Broadcasting armor pickup:', {
+                playerId: fighter.id,
+                newArmorValue: fighter.armor,
+                remainingArmorObjects: armorObjects.length
+            });
+
+            // Broadcast pickup event to all clients
             this.broadcastEvent({
                 type: 'armorPickup',
-                fighterId: fighter.id,
-                armorAmount: fighter.armor,
-                armorObjects: this.arena.getArmorObjects().map(a => ({
-                    id: a.getName(),
-                    position: a.getPosition(),
-                    defense: a.getDefense()
-                }))
+                playerId: fighter.id,
+                armor: fighter.armor,
+                armorObjects: armorObjects
             });
-            
-
         }
     }
 
