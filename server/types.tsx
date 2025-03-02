@@ -33,6 +33,7 @@ export interface MapData {
     worldWidth: number;
     worldHeight: number;
     armorSpawns: ArmorSpawn[];
+    spawnPoints: { x: number; z: number; }[];
 }
 
 export interface ClientMessage {

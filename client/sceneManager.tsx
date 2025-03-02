@@ -36,18 +36,25 @@ export default class SceneManager {
     }
     
     private createGeometriesAndMaterials(): void {
-        // Armor cube
-        this.armorGeometry = new THREE.BoxGeometry(4, 4, 4);
+        // Armor cube - make it more visible and glowy
+        this.armorGeometry = new THREE.BoxGeometry(2, 2, 2);
         this.armorMaterial = new THREE.MeshPhongMaterial({
-            color: 0xff00ff,
-            emissive: 0x440044,
-            shininess: 30,
-            specular: 0x804080
+            color: 0x00ffff,
+            emissive: 0x004444,
+            shininess: 50,
+            specular: 0x80ffff,
+            transparent: true,
+            opacity: 0.9
         });
         
-        // Fighter
-        this.fighterGeometry = new THREE.BoxGeometry(0.8, 1.6, 0.8);
-        this.fighterMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+        // Fighter - make it more visible with team colors
+        this.fighterGeometry = new THREE.BoxGeometry(1, 2, 1);
+        this.fighterMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0xff3333,
+            roughness: 0.4,
+            metalness: 0.6,
+            emissive: 0x331111
+        });
     }
     
     // Convert grid coordinates to world coordinates
@@ -63,13 +70,13 @@ export default class SceneManager {
         const cube = new THREE.Mesh(this.armorGeometry, this.armorMaterial);
         const worldPos = this.gridToWorld(data.x, data.z);
         
-        cube.position.set(worldPos.x, 16, worldPos.z);
+        cube.position.set(worldPos.x, 2, worldPos.z); // Lower height for better visibility
         
         // Store animation parameters
         const userData: ArmorCubeUserData = {
             initialY: cube.position.y,
             bobSpeed: 0.002,
-            bobHeight: 4,
+            bobHeight: 0.5, // Smaller bob height for less distraction
             rotateSpeed: 0.02,
             timeOffset: Math.random() * Math.PI * 2,
             objectId: data.objectId
@@ -89,6 +96,8 @@ export default class SceneManager {
         const worldPos = this.gridToWorld(data.x, data.z);
         
         cube.position.set(worldPos.x, 1, worldPos.z);
+        cube.castShadow = true;
+        cube.receiveShadow = true;
         cube.userData.objectId = data.objectId;
         
         this.scene.add(cube);

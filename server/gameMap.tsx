@@ -10,17 +10,34 @@ export default class GameMap {
     private worldWidth: number;
     private worldHeight: number;
     private armorSpawns: ArmorSpawn[];
+    private spawnPoints: GridPosition[];
     private coordinates: CoordinateSystem;
 
     constructor(width: number, height: number, cellSize: number) {
+        console.log('Initializing GameMap with:', { width, height, cellSize });
+        
         this.width = width;
         this.height = height;
         this.cellSize = cellSize;
-        this.grid = Array(height).fill(0).map(() => Array(width).fill(0));
+        
+        // Create grid with proper dimensions
+        this.grid = [];
+        for (let z = 0; z < height; z++) {
+            const row = new Array(width).fill(0);
+            this.grid.push(row);
+        }
+        
         this.worldWidth = width * cellSize;
         this.worldHeight = height * cellSize;
         this.armorSpawns = [];
+        this.spawnPoints = [];
         this.coordinates = new CoordinateSystem(width, height, cellSize);
+        
+        console.log('GameMap initialized:', {
+            gridDimensions: `${this.grid.length}x${this.grid[0].length}`,
+            worldDimensions: `${this.worldWidth}x${this.worldHeight}`,
+            sampleRow: this.grid[0].join('')
+        });
     }
 
     public getWidth(): number {
@@ -48,8 +65,11 @@ export default class GameMap {
     }
 
     public setCell(pos: GridPosition, value: number): void {
+        console.log(`Setting cell at (${pos.x}, ${pos.z}) to ${value}`);
         if (this.isValidGridPosition(pos)) {
             this.grid[pos.z][pos.x] = value;
+        } else {
+            console.error(`Invalid grid position: (${pos.x}, ${pos.z})`);
         }
     }
 
@@ -79,15 +99,46 @@ export default class GameMap {
         return this.armorSpawns;
     }
 
+    public addSpawnPoint(pos: GridPosition): void {
+        if (this.isEmptyCell(pos)) {
+            this.spawnPoints.push(pos);
+        }
+    }
+
+    public getSpawnPoints(): GridPosition[] {
+        return this.spawnPoints;
+    }
+
+    public getRandomSpawnPoint(): GridPosition | null {
+        if (this.spawnPoints.length === 0) return null;
+        const randomIndex = Math.floor(Math.random() * this.spawnPoints.length);
+        return this.spawnPoints[randomIndex];
+    }
+
     public toJSON(): MapData {
-        return {
+        const data = {
             width: this.width,
             height: this.height,
             cellSize: this.cellSize,
             grid: this.grid,
             worldWidth: this.worldWidth,
             worldHeight: this.worldHeight,
-            armorSpawns: this.armorSpawns
+            armorSpawns: this.armorSpawns,
+            spawnPoints: this.spawnPoints
         };
+        
+        console.log('Converting GameMap to JSON:', {
+            dimensions: `${this.width}x${this.height}`,
+            cellSize: this.cellSize,
+            gridPresent: !!this.grid,
+            wallCount: this.grid.reduce((count, row) => 
+                count + row.filter(cell => cell === 1).length, 0
+            ),
+            sampleRow: this.grid[0]?.join(''),
+            armorSpawns: this.armorSpawns.length,
+            spawnPoints: this.spawnPoints.length
+        });
+        
+        return data;
     }
 }

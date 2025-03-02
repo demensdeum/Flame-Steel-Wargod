@@ -39,13 +39,16 @@ export default class Game {
             
             // Initialize camera
             this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            this.camera.position.set(0, 10, 10);
-            this.camera.lookAt(0, 0, 0);
+            this.camera.position.set(0, 2, 5); // Lower camera height for first-person view
             
             // Initialize renderer
-            this.renderer = new THREE.WebGLRenderer({ antialias: true });
+            this.renderer = new THREE.WebGLRenderer({ 
+                antialias: true,
+                powerPreference: 'high-performance'
+            });
             this.renderer.setSize(window.innerWidth, window.innerHeight);
             this.renderer.shadowMap.enabled = true;
+            this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             document.body.appendChild(this.renderer.domElement);
             
             // Initialize first-person controls
@@ -65,23 +68,42 @@ export default class Game {
             this.clock = new THREE.Clock();
             
             // Add lighting
-            const ambientLight = new THREE.AmbientLight(0x404040);
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
             this.scene.add(ambientLight);
             
+            const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
+            this.scene.add(hemisphereLight);
+            
             const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-            directionalLight.position.set(10, 10, 10);
+            directionalLight.position.set(5, 5, 5);
             directionalLight.castShadow = true;
             directionalLight.shadow.mapSize.width = 2048;
             directionalLight.shadow.mapSize.height = 2048;
+            directionalLight.shadow.camera.near = 0.5;
+            directionalLight.shadow.camera.far = 50;
+            directionalLight.shadow.camera.left = -25;
+            directionalLight.shadow.camera.right = 25;
+            directionalLight.shadow.camera.top = 25;
+            directionalLight.shadow.camera.bottom = -25;
+            directionalLight.shadow.bias = -0.0001;
             this.scene.add(directionalLight);
             
-            // Create a temporary ground plane
-            const groundGeometry = new THREE.PlaneGeometry(100, 100);
-            const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 });
+            // Create ground plane with grid texture
+            const groundSize = 100;
+            const groundGeometry = new THREE.PlaneGeometry(groundSize, groundSize);
+            const groundMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x808080,
+                roughness: 0.8,
+                metalness: 0.2
+            });
             const ground = new THREE.Mesh(groundGeometry, groundMaterial);
             ground.rotation.x = -Math.PI / 2;
             ground.receiveShadow = true;
             this.scene.add(ground);
+            
+            // Add grid helper for better spatial awareness
+            const gridHelper = new THREE.GridHelper(groundSize, groundSize/2, 0x000000, 0x222222);
+            this.scene.add(gridHelper);
             
             console.log('Connecting to WebSocket at:', config.wsUrl);
             this.ws = new WebSocket(config.wsUrl);
@@ -223,7 +245,13 @@ export default class Game {
     
     public createMap(data: MapData): void {
         try {
-            console.log('Creating game map...');
+            console.log('Creating game map with data:', {
+                width: data.width,
+                height: data.height,
+                cellSize: data.cellSize,
+                gridSize: data.grid?.length,
+                hasGrid: !!data.grid
+            });
             
             // Initialize game map
             this.gameMap = new GameMap(data);
@@ -252,53 +280,104 @@ export default class Game {
             floor.rotation.x = -Math.PI / 2;
             this.scene.add(floor);
             
-            // Create temporary walls
-            const tempWallMaterial = new THREE.MeshStandardMaterial({ color: 0x404040 });
-            const walls: THREE.Mesh[] = [];
+            // Create walls with proper materials and positioning
+            console.log('Starting wall creation...');
             
-            if (this.gameMap.grid) {
-                for (let z = 0; z < this.gameMap.height; z++) {
-                    for (let x = 0; x < this.gameMap.width; x++) {
-                        if (this.gameMap.grid[z][x] === 1) {
-                            const wallGeometry = new THREE.BoxGeometry(
-                                this.gameMap.cellSize,
-                                this.gameMap.cellSize * 2,
-                                this.gameMap.cellSize
-                            );
-                            const wall = new THREE.Mesh(wallGeometry, tempWallMaterial);
-                            const worldPos = {
-                                x: (x - this.gameMap.width/2) * this.gameMap.cellSize,
-                                z: (z - this.gameMap.height/2) * this.gameMap.cellSize
-                            };
-                            wall.position.set(worldPos.x, this.gameMap.cellSize, worldPos.z);
-                            this.scene.add(wall);
-                            walls.push(wall);
+            // Initialize texture loader and material promise
+            const textureLoader = new THREE.TextureLoader();
+            const loadWallTexture = (): Promise<THREE.Texture> => {
+                return new Promise((resolve, reject) => {
+                    textureLoader.load(
+                        'textures/wall.jpg',
+                        (texture) => {
+                            texture.wrapS = THREE.RepeatWrapping;
+                            texture.wrapT = THREE.RepeatWrapping;
+                            texture.repeat.set(1, 1);
+                            resolve(texture);
+                        },
+                        undefined,
+                        (error) => {
+                            console.error('Error loading wall texture:', error);
+                            reject(error);
                         }
+                    );
+                });
+            };
+
+            // Create initial material
+            const tempWallMaterial = new THREE.MeshStandardMaterial({
+                color: 0x808080,
+                roughness: 0.7,
+                metalness: 0.3
+            });
+
+            // Start texture loading asynchronously
+            const texturePromise = loadWallTexture().then(texture => {
+                const wallMaterial = new THREE.MeshStandardMaterial({
+                    map: texture,
+                    roughness: 0.7,
+                    metalness: 0.3
+                });
+                return wallMaterial;
+            }).catch(() => {
+                console.warn('Using fallback material due to texture load failure');
+                return tempWallMaterial;
+            });
+
+            const walls: THREE.Mesh[] = [];
+            let wallCount = 0;
+            
+            if (!this.gameMap.grid) {
+                console.error('No grid data available for wall creation!');
+                return;
+            }
+            
+            console.log('Grid dimensions:', {
+                width: this.gameMap.width,
+                height: this.gameMap.height,
+                cellSize: this.gameMap.cellSize
+            });
+            
+            // Create wall geometry once and reuse
+            const wallGeometry = new THREE.BoxGeometry(
+                this.gameMap.cellSize,
+                this.gameMap.cellSize * 3, // Taller walls
+                this.gameMap.cellSize
+            );
+            
+            for (let z = 0; z < this.gameMap.height; z++) {
+                for (let x = 0; x < this.gameMap.width; x++) {
+                    if (this.gameMap.grid[z][x] === 1) {
+                        wallCount++;
+                        
+                        // Create wall with temporary material
+                        const wall = new THREE.Mesh(wallGeometry, tempWallMaterial);
+                        
+                        // Convert grid coordinates to world coordinates
+                        const worldX = (x - this.gameMap.width/2) * this.gameMap.cellSize;
+                        const worldZ = (z - this.gameMap.height/2) * this.gameMap.cellSize;
+                        
+                        // Position wall with proper height
+                        wall.position.set(worldX, this.gameMap.cellSize * 1.5, worldZ);
+                        
+                        // Enable shadows
+                        wall.castShadow = true;
+                        wall.receiveShadow = true;
+                        
+                        this.scene.add(wall);
+                        walls.push(wall);
                     }
                 }
             }
             
-            // Load wall texture and update materials
-            const textureLoader = new THREE.TextureLoader();
-            textureLoader.load('textures/wall.jpg', 
-                // onLoad callback
-                (wallTexture) => {
-                    const wallMaterial = new THREE.MeshStandardMaterial({
-                        map: wallTexture,
-                        roughness: 0.7,
-                        metalness: 0.3
-                    });
-                    walls.forEach(wall => {
-                        wall.material = wallMaterial;
-                    });
-                },
-                // onProgress callback
-                undefined,
-                // onError callback
-                (error) => {
-                    console.error('Error loading wall texture:', error);
-                }
-            );
+            console.log(`Wall creation complete. Created ${wallCount} walls.`);
+            
+            // Update materials once texture is loaded
+            texturePromise.then(finalMaterial => {
+                walls.forEach(wall => {
+                    wall.material = finalMaterial;
+                });
+            });
             
             // Create armor spawns
             if (data.armorSpawns && this.sceneManager) {

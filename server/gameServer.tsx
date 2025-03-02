@@ -38,18 +38,20 @@ export default class GameServer {
             
             this.clients.set(clientId, client);
             
-            // Create fighter for client
-            const centerGridPos = {
-                x: Math.floor(this.gameMap.getWidth() / 2),
-                z: Math.floor(this.gameMap.getHeight() / 2)
-            };
+            // Create fighter for client at a random spawn point
+            const spawnPoint = this.gameMap.getRandomSpawnPoint();
+            if (!spawnPoint) {
+                console.error('No spawn points available!');
+                ws.close();
+                return;
+            }
             
-            const centerWorldPos = this.coordinates.gridToWorld(centerGridPos);
+            const spawnWorldPos = this.coordinates.gridToWorld(spawnPoint);
             
             const fighter: Fighter = {
                 id: clientId,
-                x: centerWorldPos.x,
-                z: centerWorldPos.z,
+                x: spawnWorldPos.x,
+                z: spawnWorldPos.z,
                 health: 100,
                 weapon: 'none',
                 armor: 0
@@ -59,6 +61,17 @@ export default class GameServer {
             
             // Send initial game data including map and player ID
             const mapData = this.gameMap.toJSON();
+            
+            console.log('Map data from server:', {
+                width: mapData.width,
+                height: mapData.height,
+                cellSize: mapData.cellSize,
+                gridSize: mapData.grid?.length,
+                gridSample: mapData.grid?.slice(0, 3).map(row => row.join('')),
+                worldWidth: mapData.worldWidth,
+                worldHeight: mapData.worldHeight
+            });
+            
             const initData = {
                 type: 'initGame',
                 playerId: clientId,
@@ -74,7 +87,16 @@ export default class GameServer {
                 }
             };
             
-            console.log('Sending init data:', initData);
+            console.log('Sending init data to client:', {
+                type: initData.type,
+                playerId: initData.playerId,
+                mapDataPresent: !!initData.mapData,
+                gridPresent: !!initData.mapData.grid,
+                wallCount: initData.mapData.grid?.reduce((count, row) => 
+                    count + row.filter(cell => cell === 1).length, 0
+                )
+            });
+            
             ws.send(JSON.stringify(initData));
             
             // Send initial game state
