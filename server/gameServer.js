@@ -271,8 +271,70 @@ class GameServer {
             switch (data.type) {
                 case 'move':
                     fighter.setPosition(data.x, data.y, data.z);
-                    this.checkArmorPickup(fighter);
+                    
+                    // Check for armor pickup on movement
+                    const cellSize = this.arena.getMap().cellSize;
+                    const fighterGridX = Math.floor(fighter.position.x / cellSize);
+                    const fighterGridZ = Math.floor(fighter.position.z / cellSize);
+                    
+                    // Check all armor objects
+                    for (const [armorId, armor] of this.arena.getMap().armorObjects) {
+                        const armorPos = armor.getPosition();
+                        const armorGridX = Math.floor(armorPos.x / cellSize);
+                        const armorGridZ = Math.floor(armorPos.z / cellSize);
+                        
+                        console.log('Checking armor pickup:', {
+                            fighter: {
+                                world: fighter.position,
+                                grid: {x: fighterGridX, z: fighterGridZ}
+                            },
+                            armor: {
+                                id: armorId,
+                                world: armorPos,
+                                grid: {x: armorGridX, z: armorGridZ}
+                            },
+                            match: {
+                                x: fighterGridX === armorGridX,
+                                z: fighterGridZ === armorGridZ
+                            }
+                        });
+
+                        // If fighter is in same grid cell as armor
+                        if (fighterGridX === armorGridX && fighterGridZ === armorGridZ) {
+                            // Remove armor from arena
+                            this.arena.removeArmor(armor.getName());
+
+                            // Update fighter's armor
+                            if (!fighter.armor) fighter.armor = 0;
+                            fighter.armor += armor.getDefense();
+
+                            // Get updated armor objects list
+                            const armorObjects = this.arena.getArmorObjects().map(a => ({
+                                id: a.getName(),
+                                position: a.getPosition(),
+                                defense: a.getDefense()
+                            }));
+
+                            console.log('Broadcasting armor pickup:', {
+                                playerId: fighter.id,
+                                newArmorValue: fighter.armor,
+                                remainingArmorObjects: armorObjects.length
+                            });
+
+                            // Broadcast pickup event to all clients
+                            this.broadcastEvent({
+                                type: 'armorPickup',
+                                playerId: fighter.id,
+                                armor: fighter.armor,
+                                armorObjects: armorObjects
+                            });
+                            
+                            // Only pick up one armor at a time
+                            break;
+                        }
+                    }
                     break;
+                    
                 case 'rotate':
                     fighter.setRotation(data.x, data.y, data.z, data.w);
                     break;
@@ -281,6 +343,7 @@ class GameServer {
                     break;
                 case 'newFight':
                     this.startNewFight(data.generatorType);
+                    break;
                     break;
             }
 

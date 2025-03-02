@@ -597,67 +597,14 @@ class Game {
     }
 
     checkArmorPickup(serverX, serverZ) {
-        // Convert server coordinates to grid coordinates
-        const gridX = Math.floor(serverX / CELL_SIZE);
-        const gridZ = Math.floor(serverZ / CELL_SIZE);
-
-        console.log('Checking armor pickup:', {
-            player: {
-                server: {x: serverX, z: serverZ},
-                grid: {x: gridX, z: gridZ}
-            },
-            numArmorCubes: this.armorCubes.length
-        });
-
-        // Check each armor cube
-        this.armorCubes.forEach(cube => {
-            // Get cube's grid coordinates from stored original position
-            const cubeGridX = Math.floor(cube.userData.originalX / CELL_SIZE);
-            const cubeGridZ = Math.floor(cube.userData.originalZ / CELL_SIZE);
-
-            console.log('Checking armor cube:', {
-                fighter: {
-                    server: {x: serverX, z: serverZ},
-                    grid: {x: gridX, z: gridZ},
-                    scene: {
-                        x: this.camera.position.x,
-                        y: this.camera.position.y,
-                        z: this.camera.position.z
-                    }
-                },
-                cube: {
-                    id: cube.userData.id,
-                    server: {
-                        x: cube.userData.originalX,
-                        z: cube.userData.originalZ
-                    },
-                    grid: {x: cubeGridX, z: cubeGridZ},
-                    scene: {
-                        x: cube.position.x,
-                        y: cube.position.y,
-                        z: cube.position.z
-                    }
-                },
-                match: {
-                    x: gridX === cubeGridX,
-                    z: gridZ === cubeGridZ,
-                    both: gridX === cubeGridX && gridZ === cubeGridZ
-                }
-            });
-
-            // If in same grid cell
-            if (gridX === cubeGridX && gridZ === cubeGridZ) {
-                console.log('Armor pickup!', {
-                    fighter: {x: gridX, z: gridZ},
-                    cube: {x: cubeGridX, z: cubeGridZ},
-                    armorId: cube.userData.id
-                });
-
-                // Send armor pickup event to server
-                this.socket.send(JSON.stringify({
-                    type: 'armorPickup',
-                    armorId: cube.userData.id
-                }));
+        // Server handles all armor pickup detection
+        // Just log position for debugging
+        console.log('Fighter position:', {
+            server: {x: serverX, z: serverZ},
+            camera: {
+                x: this.camera.position.x,
+                y: this.camera.position.y,
+                z: this.camera.position.z
             }
         });
     }

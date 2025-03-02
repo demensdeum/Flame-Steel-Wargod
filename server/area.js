@@ -19,13 +19,33 @@ class Area {
     }
 
     getArmorAt(x, y, z) {
+        // Convert world coordinates to grid coordinates
+        const gridX = Math.floor(x / this.map.cellSize);
+        const gridZ = Math.floor(z / this.map.cellSize);
+
+        console.log('Checking armor pickup at grid position:', {
+            world: {x, y, z},
+            grid: {x: gridX, z: gridZ}
+        });
+
+        // Check each armor object
         for (const armor of this.map.armorObjects.values()) {
             const pos = armor.getPosition();
-            const dx = pos.x - x;
-            const dy = pos.y - y;
-            const dz = pos.z - z;
-            const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-            if (distance < 1.0) { // Within 1 unit of distance
+            const armorGridX = Math.floor(pos.x / this.map.cellSize);
+            const armorGridZ = Math.floor(pos.z / this.map.cellSize);
+
+            console.log('Checking armor object:', {
+                id: armor.getName(),
+                world: pos,
+                grid: {x: armorGridX, z: armorGridZ},
+                match: {
+                    x: gridX === armorGridX,
+                    z: gridZ === armorGridZ,
+                    both: gridX === armorGridX && gridZ === armorGridZ
+                }
+            });
+
+            if (gridX === armorGridX && gridZ === armorGridZ) {
                 return armor;
             }
         }
