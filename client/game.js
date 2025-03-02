@@ -784,7 +784,7 @@ class Game {
         const time = Date.now() * 0.001;
         this.armorCubes.forEach(cube => {
             cube.rotation.y = time;
-            cube.position.y = 0.5 + Math.sin(time * 2) * 0.1; // Floating animation
+            cube.position.y = 1.0 + Math.sin(time * 2) * 0.1; // Floating animation at higher position
         });
         
         // Update camera controls and movement if we have a map

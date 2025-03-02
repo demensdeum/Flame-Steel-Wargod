@@ -463,11 +463,6 @@ class GameServer {
         // Get map data first to ensure consistent state
         const mapData = this.arena.getMap().getMapData();
         
-        // Validate armor objects count
-        if (mapData.armorObjects.length < 2) {
-            console.error('CRITICAL ERROR: Not enough armor objects:', mapData.armorObjects.length);
-            throw new Error('Server crash: Not enough armor objects');
-        }
         
         console.log('Map data for broadcast:', {
             numArmorObjects: mapData.armorObjects.length,
