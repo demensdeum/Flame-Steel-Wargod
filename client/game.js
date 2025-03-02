@@ -58,11 +58,12 @@ class Game {
         
         // Create armor cube geometry and material
         this.armorGeometry = new THREE.BoxGeometry(1, 1, 1);
-        this.armorMaterial = new THREE.MeshPhongMaterial({ 
-            color: 0x800080,     // Purple base color
-            emissive: 0x400040,  // Slight purple glow
-            shininess: 50,       // Make it shiny
-            specular: 0xffffff   // White specular highlights
+        this.armorMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0xff00ff,     // Bright magenta
+            emissive: 0xff00ff,  // Full bright glow
+            transparent: true,
+            opacity: 1.0,        // Fully opaque
+            side: THREE.DoubleSide // Visible from both sides
         });
         this.armorCubes = [];
         this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -127,7 +128,16 @@ class Game {
     }
 
     handleServerMessage(data) {
-        console.log('Received message:', data);
+        console.log('Received message:', {
+            type: data.type,
+            hasMap: data.map ? true : false,
+            mapDetails: data.map ? {
+                width: data.map.width,
+                height: data.map.height,
+                numArmor: data.map.armorObjects?.length
+            } : null,
+            armorObjects: data.armorObjects
+        });
         if (data.type === 'connected') {
             this.playerId = data.id;
             this.map = new GameMap(data.map);
@@ -140,11 +150,9 @@ class Game {
             case 'armorPickup':
                 // Update armor objects
                 if (data.armorObjects) {
-                    // Clear existing armor cubes
-                    this.armorCubes.forEach(cube => this.scene.remove(cube));
-                    this.armorCubes = [];
+                    // Track active armor IDs
+                    const activeArmorIds = new Set();
                     
-                    // Create new cubes from server armor objects
                     data.armorObjects.forEach(armorData => {
                         if (!armorData.position || typeof armorData.position.x !== 'number' || 
                             typeof armorData.position.y !== 'number' || 
@@ -152,20 +160,38 @@ class Game {
                             console.error('Invalid armor object position:', armorData);
                             throw new Error('Armor object missing valid position');
                         }
-                        console.log('armor object position:', armorData.position);
                         
-                        const cube = new THREE.Mesh(this.armorGeometry, this.armorMaterial);
+                        activeArmorIds.add(armorData.id);
+                        
+                        // Find existing cube or create new one
+                        let cube = this.armorCubes.find(c => c.userData.id === armorData.id);
+                        
+                        if (!cube) {
+                            // Create new armor cube
+                            cube = new THREE.Mesh(this.armorGeometry, this.armorMaterial);
+                            cube.scale.set(0.8, 0.8, 0.8);
+                            cube.userData.id = armorData.id;
+                            this.scene.add(cube);
+                            this.armorCubes.push(cube);
+                        }
+                        
+                        // Update position and properties
                         const pos = armorData.position;
                         cube.position.set(
                             pos.x - this.map.width/2 + 0.5,
                             pos.y,
                             pos.z - this.map.height/2 + 0.5
                         );
-                        cube.scale.set(0.5, 0.5, 0.5);
-                        cube.userData.id = armorData.id;
                         cube.userData.defense = armorData.defense;
-                        this.scene.add(cube);
-                        this.armorCubes.push(cube);
+                    });
+                    
+                    // Remove inactive armor cubes
+                    this.armorCubes = this.armorCubes.filter(cube => {
+                        if (!activeArmorIds.has(cube.userData.id)) {
+                            this.scene.remove(cube);
+                            return false;
+                        }
+                        return true;
                     });
                 }
                 
@@ -203,43 +229,93 @@ class Game {
         // Clear existing walls
         this.walls.forEach(wall => this.scene.remove(wall));
         this.walls.clear();
-
-        // Clear existing armor cubes
-        this.armorCubes.forEach(cube => this.scene.remove(cube));
-        this.armorCubes = [];
         
-        // Create armor objects from server data
-        console.log('Creating armor objects:', mapData.armorObjects);
+        // Update armor objects from server data
+        console.log('Updating armor objects:', {
+            received: mapData.armorObjects,
+            currentCubes: this.armorCubes.map(c => ({ 
+                id: c.userData.id,
+                position: c.position,
+                visible: c.visible,
+                parent: c.parent ? 'scene' : 'none'
+            }))
+        });
         if (Array.isArray(mapData.armorObjects)) {
+            const activeArmorIds = new Set();
+            
             mapData.armorObjects.forEach(armorData => {
+                console.log('Processing armor:', armorData);
                 if (!armorData.position || typeof armorData.position.x !== 'number' || 
                     typeof armorData.position.y !== 'number' || 
                     typeof armorData.position.z !== 'number') {
                     console.error('Invalid armor object position:', armorData);
                     throw new Error('Armor object missing valid position');
                 }
-                console.log('armor object position:', armorData.position);
                 
-                const cube = new THREE.Mesh(this.armorGeometry, this.armorMaterial);
+                activeArmorIds.add(armorData.id);
+                
+                // Find existing cube or create new one
+                let cube = this.armorCubes.find(c => c.userData.id === armorData.id);
+                
+                if (!cube) {
+                    console.log('Creating new armor cube for:', armorData.id);
+                    // Create new armor cube
+                    console.log('Creating armor cube:', armorData);
+                    cube = new THREE.Mesh(this.armorGeometry, this.armorMaterial.clone());
+                    cube.scale.set(1.5, 1.5, 1.5); // Make them bigger
+                    cube.userData.id = armorData.id;
+                    this.armorCubes.push(cube);
+                    this.scene.add(cube);
+                    console.log('Added cube to scene, total cubes:', this.armorCubes.length);
+                }
+                
+                // Update position and properties
                 const pos = armorData.position;
-                // Convert from world coordinates to scene coordinates
-                cube.position.set(
-                    pos.x - mapData.width/2 + 0.5,
-                    pos.y,
-                    pos.z - mapData.height/2 + 0.5
-                );
-                console.log('ARMOR OBJECT POSITION:', pos);
-                cube.scale.set(0.8, 0.8, 0.8);  // Make cubes bigger
-                cube.userData.id = armorData.id;         // Store server ID
-                cube.userData.defense = armorData.defense; // Store defense value
-                this.scene.add(cube);
-                this.armorCubes.push(cube);
+                // Convert from grid coordinates to scene coordinates
+                const sceneX = (pos.x / 64) - mapData.width/2 + 0.5;
+                const sceneY = pos.y;
+                const sceneZ = (pos.z / 64) - mapData.height/2 + 0.5;
+                
+                cube.position.set(sceneX, sceneY, sceneZ);
+                console.log('Armor position conversion:', {
+                    id: armorData.id,
+                    grid: pos,
+                    scene: {x: sceneX, y: sceneY, z: sceneZ}
+                });
+                cube.userData.defense = armorData.defense;
+                
+                console.log('Armor cube position:', {
+                    id: armorData.id,
+                    world: pos,
+                    scene: {x: sceneX, y: sceneY, z: sceneZ},
+                    actual: cube.position
+                });
+            });
+            
+            // Remove inactive armor cubes
+            const beforeCount = this.armorCubes.length;
+            this.armorCubes = this.armorCubes.filter(cube => {
+                if (!activeArmorIds.has(cube.userData.id)) {
+                    console.log('Removing inactive armor cube:', cube.userData.id);
+                    this.scene.remove(cube);
+                    return false;
+                }
+                return true;
+            });
+            console.log('Armor cubes count:', {
+                before: beforeCount,
+                after: this.armorCubes.length,
+                active: activeArmorIds.size
             });
         }
         
         // Create floor using grid units
         const floorGeometry = new THREE.PlaneGeometry(mapData.width, mapData.height);
-        const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x0066cc });
+        const floorMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x0066cc,
+            transparent: true,
+            opacity: 0.5
+        });
         const floor = new THREE.Mesh(floorGeometry, floorMaterial);
         floor.rotation.x = -Math.PI / 2;
         floor.position.set(0, 0, 0);
@@ -247,7 +323,11 @@ class Game {
 
         // Create ceiling
         const ceilingGeometry = new THREE.PlaneGeometry(mapData.width, mapData.height);
-        const ceilingMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff }); // White
+        const ceilingMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0xffffff, // White
+            transparent: true,
+            opacity: 0.5
+        });
         const ceiling = new THREE.Mesh(ceilingGeometry, ceilingMaterial);
         ceiling.rotation.x = Math.PI / 2;
         ceiling.position.set(0, 2, 0); // At wall height
@@ -267,7 +347,9 @@ class Game {
         const wallGeometry = new THREE.BoxGeometry(1, 2, 1);
         const tempMaterial = new THREE.MeshBasicMaterial({
             color: 0xff0000,
-            side: THREE.DoubleSide
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.5
         });
         
         const instancedMesh = new THREE.InstancedMesh(wallGeometry, tempMaterial, wallCount);
@@ -310,7 +392,9 @@ class Game {
                 
                 const brickMaterial = new THREE.MeshBasicMaterial({
                     map: texture,
-                    side: THREE.DoubleSide
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    opacity: 0.5
                 });
 
                 // Update instanced mesh material
@@ -507,6 +591,63 @@ class Game {
         this.prevTime = performance.now();
     }
 
+    printSceneDebug() {
+        console.log('=== THREE.JS SCENE DEBUG ===');
+        console.log('Camera:', {
+            position: this.camera.position.clone(),
+            rotation: this.camera.rotation.clone(),
+            quaternion: this.camera.quaternion.clone()
+        });
+
+        console.log('Scene hierarchy:');
+        let objectsCount = { total: 0 };
+        this.scene.traverse(obj => {
+            objectsCount.total++;
+            objectsCount[obj.type] = (objectsCount[obj.type] || 0) + 1;
+        });
+
+        console.log('Scene objects count:', objectsCount);
+
+        console.log('Armor cubes:', {
+            total: this.armorCubes.length,
+            cubes: this.armorCubes.map(cube => ({
+                id: cube.userData.id,
+                position: cube.position.clone(),
+                worldPosition: cube.getWorldPosition(new THREE.Vector3()),
+                scale: cube.scale.clone(),
+                visible: cube.visible,
+                inScene: this.scene.children.includes(cube),
+                material: {
+                    type: cube.material.type,
+                    color: '#' + cube.material.color.getHexString(),
+                    opacity: cube.material.opacity,
+                    transparent: cube.material.transparent,
+                    visible: cube.material.visible
+                }
+            }))
+        });
+
+        console.log('Fighters:', {
+            total: this.fighters.size,
+            fighters: Array.from(this.fighters.entries()).map(([id, mesh]) => ({
+                id,
+                position: mesh.position.clone(),
+                worldPosition: mesh.getWorldPosition(new THREE.Vector3()),
+                visible: mesh.visible
+            }))
+        });
+
+        console.log('Walls:', {
+            total: this.walls.size,
+            firstWall: this.walls.size > 0 ? {
+                position: Array.from(this.walls)[0].position.clone(),
+                visible: Array.from(this.walls)[0].visible
+            } : null
+        });
+
+        console.log('========================');
+    }
+
     animate() {
         requestAnimationFrame(() => this.animate());
         
@@ -523,6 +664,13 @@ class Game {
             this.controls.update((x, z) => this.canMoveTo(x, z));
             // Update server with new position
             this.updateMovement();
+        }
+        
+        // Print debug every 2 seconds
+        const currentTime = Date.now();
+        if (currentTime - (this._lastDebugTime || 0) > 2000) {
+            this.printSceneDebug();
+            this._lastDebugTime = currentTime;
         }
         
         this.renderer.render(this.scene, this.camera);
