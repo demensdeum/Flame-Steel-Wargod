@@ -1,7 +1,7 @@
 {
   "name": "flame-steel-wargod",
-  "version": "1.0.0",
-  "description": "Multiplayer arena combat game",
+  "version": "1.0.0-alpha",
+  "description": "First-person multiplayer arena combat game with dynamic armor system",
   "main": "server/main.js",
   "scripts": {
     "start": "node server/main.js"

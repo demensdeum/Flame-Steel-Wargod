@@ -58,7 +58,12 @@ class Game {
         
         // Create armor cube geometry and material
         this.armorGeometry = new THREE.BoxGeometry(1, 1, 1);
-        this.armorMaterial = new THREE.MeshPhongMaterial({ color: 0x800080 }); // Purple
+        this.armorMaterial = new THREE.MeshPhongMaterial({ 
+            color: 0x800080,     // Purple base color
+            emissive: 0x400040,  // Slight purple glow
+            shininess: 50,       // Make it shiny
+            specular: 0xffffff   // White specular highlights
+        });
         this.armorCubes = [];
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(this.renderer.domElement);
@@ -97,9 +102,19 @@ class Game {
     }
 
     setupLights() {
-        // Single bright ambient light like in Wolf3D
-        const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
+        // Add ambient light
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
         this.scene.add(ambientLight);
+
+        // Add directional light
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(5, 5, 5);
+        this.scene.add(dirLight);
+
+        // Add point lights for better visibility
+        const pointLight1 = new THREE.PointLight(0xffffff, 0.5);
+        pointLight1.position.set(0, 10, 0);
+        this.scene.add(pointLight1);
     }
 
     setupWebSocket() {
@@ -123,21 +138,32 @@ class Game {
         
         switch (data.type) {
             case 'armorPickup':
-                // Update armor cubes
-                if (data.remainingSpawns) {
+                // Update armor objects
+                if (data.armorObjects) {
                     // Clear existing armor cubes
                     this.armorCubes.forEach(cube => this.scene.remove(cube));
                     this.armorCubes = [];
                     
-                    // Create new cubes for remaining spawns
-                    data.remainingSpawns.forEach(spawn => {
+                    // Create new cubes from server armor objects
+                    data.armorObjects.forEach(armorData => {
+                        if (!armorData.position || typeof armorData.position.x !== 'number' || 
+                            typeof armorData.position.y !== 'number' || 
+                            typeof armorData.position.z !== 'number') {
+                            console.error('Invalid armor object position:', armorData);
+                            throw new Error('Armor object missing valid position');
+                        }
+                        console.log('armor object position:', armorData.position);
+                        
                         const cube = new THREE.Mesh(this.armorGeometry, this.armorMaterial);
+                        const pos = armorData.position;
                         cube.position.set(
-                            spawn.x - this.map.width/2 + 0.5,
-                            0.5, // Float above ground
-                            spawn.y - this.map.height/2 + 0.5
+                            pos.x - this.map.width/2 + 0.5,
+                            pos.y,
+                            pos.z - this.map.height/2 + 0.5
                         );
                         cube.scale.set(0.5, 0.5, 0.5);
+                        cube.userData.id = armorData.id;
+                        cube.userData.defense = armorData.defense;
                         this.scene.add(cube);
                         this.armorCubes.push(cube);
                     });
@@ -182,16 +208,30 @@ class Game {
         this.armorCubes.forEach(cube => this.scene.remove(cube));
         this.armorCubes = [];
         
-        // Create armor cubes at spawn points
-        if (mapData.armorSpawns) {
-            mapData.armorSpawns.forEach(spawn => {
+        // Create armor objects from server data
+        console.log('Creating armor objects:', mapData.armorObjects);
+        if (Array.isArray(mapData.armorObjects)) {
+            mapData.armorObjects.forEach(armorData => {
+                if (!armorData.position || typeof armorData.position.x !== 'number' || 
+                    typeof armorData.position.y !== 'number' || 
+                    typeof armorData.position.z !== 'number') {
+                    console.error('Invalid armor object position:', armorData);
+                    throw new Error('Armor object missing valid position');
+                }
+                console.log('armor object position:', armorData.position);
+                
                 const cube = new THREE.Mesh(this.armorGeometry, this.armorMaterial);
+                const pos = armorData.position;
+                // Convert from world coordinates to scene coordinates
                 cube.position.set(
-                    spawn.x - mapData.width/2 + 0.5,
-                    0.5, // Float above ground
-                    spawn.y - mapData.height/2 + 0.5
+                    pos.x - mapData.width/2 + 0.5,
+                    pos.y,
+                    pos.z - mapData.height/2 + 0.5
                 );
-                cube.scale.set(0.5, 0.5, 0.5); // Make cubes smaller
+                console.log('ARMOR OBJECT POSITION:', pos);
+                cube.scale.set(0.8, 0.8, 0.8);  // Make cubes bigger
+                cube.userData.id = armorData.id;         // Store server ID
+                cube.userData.defense = armorData.defense; // Store defense value
                 this.scene.add(cube);
                 this.armorCubes.push(cube);
             });

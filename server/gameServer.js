@@ -51,6 +51,7 @@ class GameServer {
     }
 
     startNewFight(generatorType = MapGeneratorType.ARENA) {
+        console.log('Starting new fight, creating armor objects...');
         let generator;
         switch (generatorType) {
             case MapGeneratorType.CAVE:
@@ -64,17 +65,49 @@ class GameServer {
                 generator = new ArenaMapGenerator();
                 break;
         }
-        this.arena = new Area(generator.generate());
         
+        // Generate new map
+        const map = generator.generate();
+        this.arena = new Area(map);
+        
+        // Create armor objects at spawn points
+        const centerX = Math.floor(map.width / 2);
+        const centerY = Math.floor(map.height / 2);
+        const radius = Math.min(centerX, centerY) - 5;
+        const armorRadius = radius * 0.6;
+        
+        // Add 4 armor objects in a circle
+        for (let i = 0; i < 4; i++) {
+            const angle = (i / 4) * Math.PI * 2;
+            const spawnX = Math.floor(centerX + Math.cos(angle) * armorRadius);
+            const spawnZ = Math.floor(centerY + Math.sin(angle) * armorRadius);
+            
+            map.setEmpty(spawnX, spawnZ); // Ensure spot is empty
+            const armor = map.addArmorObject(spawnX, spawnZ); // Create armor object at this position
+            console.log('Created armor object:', {
+                id: armor.getName(),
+                position: armor.getPosition(),
+                defense: armor.getDefense()
+            });
+        }
+        
+        // Respawn all fighters at random points
         Array.from(this.players).forEach(fighter => {
             const spawnPoint = this.arena.getMap().getRandomSpawnPoint();
             fighter.setPosition(spawnPoint.x, spawnPoint.y, spawnPoint.z);
             fighter.respawn();
         });
 
+        // Broadcast new fight event with map data including armor objects
+        const mapData = this.arena.getMap().getMapData();
+        console.log('Broadcasting new fight with armor objects:', {
+            numArmorObjects: mapData.armorObjects.length,
+            armorObjects: mapData.armorObjects
+        });
+        
         this.broadcastEvent({
             type: 'newFight',
-            map: this.arena.getMap().getMapData()
+            map: mapData  // Use the same mapData object
         });
 
         this.broadcastGameState();
@@ -163,7 +196,11 @@ class GameServer {
         this.transport.send(connection, { 
             type: 'connected',
             id: fighter.id,
-            map: map
+            map: map.getMapData()
+        });
+        
+        console.log('Sent initial map data:', {
+            armorObjects: map.getMapData().armorObjects
         });
 
         // Send game state immediately after connection
@@ -171,53 +208,39 @@ class GameServer {
     }
 
     checkArmorPickup(fighter) {
-        const map = this.arena.getMap();
-        if (!map.armorSpawns) return;
+        // Get armor at fighter's position
+        const armor = this.arena.getArmorAt(
+            fighter.position.x,
+            fighter.position.y,
+            fighter.position.z
+        );
 
-        // Get fighter's grid position
-        const fighterGridX = Math.floor((fighter.position.x + (map.width * map.cellSize) / 2) / map.cellSize);
-        const fighterGridY = Math.floor((fighter.position.z + (map.height * map.cellSize) / 2) / map.cellSize);
-        
-        console.log('Checking armor pickup:', {
-            fighterWorld: fighter.position,
-            fighterGrid: { x: fighterGridX, y: fighterGridY },
-            armorSpawns: map.armorSpawns
-        });
+        if (armor) {
+            console.log('Fighter picked up armor:', {
+                fighter: fighter.id,
+                armor: armor.getName(),
+                position: armor.getPosition()
+            });
 
-        // Check each armor spawn point
-        for (let i = 0; i < map.armorSpawns.length; i++) {
-            const spawn = map.armorSpawns[i];
-            
-            // Check if fighter is in same or adjacent cell
-            const dx = Math.abs(fighterGridX - spawn.x);
-            const dy = Math.abs(fighterGridY - spawn.y);
-            
-            console.log('Grid distance to armor:', {
-                spawn,
-                dx,
-                dy,
-                fighterGrid: { x: fighterGridX, y: fighterGridY }
+            // Remove armor from arena
+            this.arena.removeArmor(armor.getName());
+
+            // Update fighter's armor
+            fighter.armor += armor.getDefense();
+
+            // Broadcast pickup event
+            this.broadcastEvent({
+                type: 'armorPickup',
+                fighterId: fighter.id,
+                armorAmount: fighter.armor,
+                armorObjects: this.arena.getArmorObjects().map(a => ({
+                    id: a.getName(),
+                    position: a.getPosition(),
+                    defense: a.getDefense()
+                }))
             });
             
-            // If in same cell or adjacent cell
-            if (dx <= 1 && dy <= 1) {
-                // Add armor
-                fighter.armor = (fighter.armor || 0) + 20;
-                if (fighter.armor > 100) fighter.armor = 100;
 
-                // Remove this armor spawn
-                map.armorSpawns.splice(i, 1);
-                
-                // Notify all clients about armor pickup
-                this.broadcastEvent({
-                    type: 'armorPickup',
-                    fighterId: fighter.id,
-                    armorAmount: fighter.armor,
-                    remainingSpawns: map.armorSpawns
-                });
-                
-                break;
-            }
         }
     }
 
@@ -336,9 +359,17 @@ class GameServer {
                 rz: fighter.rotation.z,
                 health: fighter.health
             })),
-            map: this.arena.getMap()
+            map: this.arena.getMap().getMapData()
         };
-        console.log('Sending game state:', gameState);
+        console.log('Sending game state:', {
+            numFighters: gameState.fighters.length,
+            mapData: {
+                width: gameState.map.width,
+                height: gameState.map.height,
+                numArmorObjects: gameState.map.armorObjects.length,
+                armorObjects: gameState.map.armorObjects
+            }
+        });
         this.transport.send(client, gameState);
     }
 
@@ -357,6 +388,20 @@ class GameServer {
             this.players.delete(fighter);
         });
 
+        // Get map data first to ensure consistent state
+        const mapData = this.arena.getMap().getMapData();
+        
+        // Validate armor objects count
+        if (mapData.armorObjects.length < 2) {
+            console.error('CRITICAL ERROR: Not enough armor objects:', mapData.armorObjects.length);
+            throw new Error('Server crash: Not enough armor objects');
+        }
+        
+        console.log('Map data for broadcast:', {
+            numArmorObjects: mapData.armorObjects.length,
+            armorObjects: mapData.armorObjects
+        });
+
         const gameState = {
             type: 'gameState',
             fighters: Array.from(this.players).map(fighter => ({
@@ -369,7 +414,7 @@ class GameServer {
                 rz: fighter.rotation.z,
                 health: fighter.health
             })),
-            map: this.arena.getMap()
+            map: mapData  // Use the same mapData object
         };
         console.log('Broadcasting state:', gameState);
         this.transport.broadcast(gameState);

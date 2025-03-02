@@ -1,3 +1,5 @@
+const Armor = require('./armor');
+
 class GameMap {
     constructor(width = 16, height = 16) {
         this.width = width;
@@ -5,7 +7,38 @@ class GameMap {
         this.cellSize = 64;
         this.grid = Array(height).fill().map(() => Array(width).fill(0));
         this.spawnPoints = [];
-        this.armorSpawns = [];
+        this.armorObjects = new Map(); // Map of armor ID to Armor object
+    }
+
+    addArmorObject(x, z) {
+        const worldX = x * this.cellSize;
+        const worldZ = z * this.cellSize;
+        const armorId = `Armor_${x}_${z}`;
+        
+        console.log('GameMap: Creating armor object:', {
+            gridPosition: { x, z },
+            worldPosition: { x: worldX, z: worldZ },
+            armorId
+        });
+        
+        const armor = new Armor(
+            armorId,  // Name
+            25,      // Defense value
+            worldX,  // x
+            0.5,     // y (floating above ground)
+            worldZ   // z
+        );
+        
+        this.armorObjects.set(armorId, armor);
+        
+        console.log('GameMap: Created armor object:', {
+            id: armor.getName(),
+            position: armor.getPosition(),
+            defense: armor.getDefense(),
+            totalArmorObjects: this.armorObjects.size
+        });
+        
+        return armor;
     }
 
     setWall(x, y) {
@@ -82,15 +115,51 @@ class GameMap {
     }
 
     getMapData() {
-        return {
+        // Convert armor objects to array first
+        const armorObjectsArray = Array.from(this.armorObjects.values()).map(armor => {
+            const position = armor.getPosition();
+            console.log('Armor object raw position:', position);
+            
+            // Ensure position has x, y, z coordinates
+            const validPosition = {
+                x: position?.x || 0,
+                y: position?.y || 0,
+                z: position?.z || 0
+            };
+            
+            console.log('Armor object validated position:', validPosition);
+            
+            return {
+                id: armor.getName(),
+                position: validPosition,
+                defense: armor.getDefense()
+            };
+        });
+
+        console.log('GameMap: Converting armor objects:', {
+            numArmorObjects: this.armorObjects.size,
+            armorObjectsArray
+        });
+
+        const mapData = {
             width: this.width,
             height: this.height,
             cellSize: this.cellSize,
             grid: this.grid.map(row => [...row]),
             worldWidth: this.width * this.cellSize,
             worldHeight: this.height * this.cellSize,
-            armorSpawns: this.armorSpawns.map(spawn => ({ ...spawn })) // Send copy of armor spawns
+            armorObjects: armorObjectsArray,  // Make sure this is an array
+            spawnPoints: this.spawnPoints.map(point => ({ ...point }))  // Clone spawn points
         };
+        
+        console.log('GameMap: Sending map data:', {
+            dimensions: { width: this.width, height: this.height },
+            cellSize: this.cellSize,
+            numArmorObjects: armorObjectsArray.length,
+            armorObjects: armorObjectsArray
+        });
+        
+        return mapData;
     }
 
 }

@@ -37,21 +37,33 @@ class ArenaMapGenerator {
         // Add center spawn point
         map.setEmpty(centerX, centerY, true);
 
-        // Add armor spawn points in a smaller circle
+        // Add armor objects in a smaller circle
         const armorRadius = radius * 0.6; // Armor spawns closer to center
-        const armorSpawns = [];
         
-        // Add 4 armor spawn points
+        console.log('ArenaMapGenerator: Creating armor objects', {
+            centerX,
+            centerY,
+            radius,
+            armorRadius
+        });
+
+        // Add 4 armor objects
         for (let i = 0; i < 4; i++) {
             const angle = (i / 4) * Math.PI * 2;
             const spawnX = Math.floor(centerX + Math.cos(angle) * armorRadius);
-            const spawnY = Math.floor(centerY + Math.sin(angle) * armorRadius);
+            const spawnZ = Math.floor(centerY + Math.sin(angle) * armorRadius);
             
-            armorSpawns.push({ x: spawnX, y: spawnY });
-            map.setEmpty(spawnX, spawnY); // Ensure spot is empty
+            console.log(`ArenaMapGenerator: Creating armor ${i + 1}/4 at position:`, { spawnX, spawnZ });
+            
+            map.setEmpty(spawnX, spawnZ); // Ensure spot is empty
+            const armor = map.addArmorObject(spawnX, spawnZ); // Create armor object at this position
+            
+            console.log('ArenaMapGenerator: Created armor object:', {
+                id: armor.getName(),
+                position: armor.getPosition(),
+                defense: armor.getDefense()
+            });
         }
-
-        map.armorSpawns = armorSpawns;
         return map;
     }
 }
