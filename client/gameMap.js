@@ -12,7 +12,8 @@ class GameMap {
         this.height = mapData.height;
         this.cellSize = mapData.cellSize || 64; // Default to 64 if not provided
         this.grid = mapData.grid;
-        console.log('GameMap initialized:', this);
+        this.armorSpawns = mapData.armorSpawns || [];
+        console.log('GameMap initialized with armor spawns:', this);
     }
 
     isEmptyCell(x, z) {

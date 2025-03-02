@@ -3,6 +3,7 @@ import { PointerLockControls } from 'three/addons/controls/PointerLockControls.j
 import GameMap from './gameMap.js';
 import HUD from './hud.js';
 import { config } from './config.js';
+import Cover from './cover.js';
 
 class Game {
     // Helper function to validate PNG data
@@ -53,94 +54,42 @@ class Game {
         
         // Create HUD
         this.hud = new HUD();
-        // Click to start
-        const blocker = document.createElement('div');
-        blocker.style.position = 'fixed';
-        blocker.style.top = '0';
-        blocker.style.left = '0';
-        blocker.style.width = '100%';
-        blocker.style.height = '100%';
-        blocker.style.backgroundColor = 'rgba(0,0,0,0.5)';
-        blocker.style.display = 'flex';
-        blocker.style.justifyContent = 'center';
-        blocker.style.alignItems = 'center';
-        blocker.style.color = 'white';
-        blocker.style.fontSize = '24px';
-        blocker.style.cursor = 'pointer';
-        blocker.style.zIndex = '999999';
-        blocker.style.touchAction = 'manipulation';
-        blocker.style.userSelect = 'none';
-        blocker.style.webkitUserSelect = 'none';
-        blocker.style.webkitTapHighlightColor = 'transparent';
-        blocker.style.flexDirection = 'column';
         
-        // Add cover image
-        const cover = document.createElement('img');
-        cover.src = './textures/cover.jpg';
-        cover.style.maxWidth = '30%';
-        cover.style.height = 'auto';
-        cover.style.marginBottom = '30px';
-        cover.style.borderRadius = '10px';
-        cover.style.boxShadow = '0 0 20px rgba(0,0,0,0.5)';
-        
-        // Create game title and version
-        const title = document.createElement('div');
-        title.textContent = this.isMobile ? 'Tap to Play' : 'Click to Play';
-        title.style.marginBottom = '20px';
-        
-        const version = document.createElement('div');
-        version.textContent = config.fullVersion();
-        version.style.fontSize = '14px';
-        version.style.opacity = '0.7';
-        
-        blocker.appendChild(cover);
-        blocker.appendChild(title);
-        blocker.appendChild(version);
-        document.body.appendChild(blocker);
+        // Create cover screen
+        this.cover = new Cover(this.isMobile, () => {
+            if (this.isMobile) {
+                this.cover.hide();
+                this.hud.show();
+                document.getElementById('touchControls').style.display = 'block';
+                this.setupTouchControls();
+            } else {
+                this.controls.lock();
+            }
+        });
 
         this.scene = new THREE.Scene();
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         this.renderer = new THREE.WebGLRenderer();
+        
+        // Create armor cube geometry and material
+        this.armorGeometry = new THREE.BoxGeometry(1, 1, 1);
+        this.armorMaterial = new THREE.MeshPhongMaterial({ color: 0x800080 }); // Purple
+        this.armorCubes = [];
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(this.renderer.domElement);
 
         this.controls = new PointerLockControls(this.camera, document.body);
         this.camera.position.y = 1.6; // Eye height
 
-        // Handle both click and touch for game start
-        const startGame = () => {
-            if (this.isMobile) {
-                // On mobile, just hide blocker and show controls
-                blocker.style.display = 'none';
-                this.hud.show();
-                // Show touch controls
-                document.getElementById('touchControls').style.display = 'block';
-                // Start touch controls
-                this.setupTouchControls();
-            } else {
-                this.controls.lock();
-            }
-        };
-
-        const startGameHandler = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            startGame();
-        };
-        
-        blocker.addEventListener('click', startGameHandler);
-        blocker.addEventListener('touchstart', startGameHandler, { passive: false });
-        blocker.addEventListener('touchend', startGameHandler, { passive: false });
-
         if (!this.isMobile) {
             this.controls.addEventListener('lock', () => {
-                blocker.style.display = 'none';
+                this.cover.hide();
                 this.hud.show();
             });
         }
 
         this.controls.addEventListener('unlock', () => {
-            blocker.style.display = 'flex';
+            this.cover.show();
             this.hud.hide();
         });
 
@@ -189,6 +138,34 @@ class Game {
         }
         
         switch (data.type) {
+            case 'armorPickup':
+                // Update armor cubes
+                if (data.remainingSpawns) {
+                    // Clear existing armor cubes
+                    this.armorCubes.forEach(cube => this.scene.remove(cube));
+                    this.armorCubes = [];
+                    
+                    // Create new cubes for remaining spawns
+                    data.remainingSpawns.forEach(spawn => {
+                        const cube = new THREE.Mesh(this.armorGeometry, this.armorMaterial);
+                        cube.position.set(
+                            spawn.x - this.map.width/2 + 0.5,
+                            0.5, // Float above ground
+                            spawn.y - this.map.height/2 + 0.5
+                        );
+                        cube.scale.set(0.5, 0.5, 0.5);
+                        this.scene.add(cube);
+                        this.armorCubes.push(cube);
+                    });
+                }
+                
+                // If this player picked up armor, update HUD
+                if (data.fighterId === this.playerId) {
+                    this.armor = data.armorAmount;
+                    this.hud.update(this.health, this.currentWeapon, this.armor, this.fighters.size + 1);
+                }
+                break;
+                
             case 'newFight':
                 this.map = new GameMap(data.map);
                 this.createMap(data.map);
@@ -217,6 +194,25 @@ class Game {
         this.walls.forEach(wall => this.scene.remove(wall));
         this.walls.clear();
 
+        // Clear existing armor cubes
+        this.armorCubes.forEach(cube => this.scene.remove(cube));
+        this.armorCubes = [];
+        
+        // Create armor cubes at spawn points
+        if (mapData.armorSpawns) {
+            mapData.armorSpawns.forEach(spawn => {
+                const cube = new THREE.Mesh(this.armorGeometry, this.armorMaterial);
+                cube.position.set(
+                    spawn.x - mapData.width/2 + 0.5,
+                    0.5, // Float above ground
+                    spawn.y - mapData.height/2 + 0.5
+                );
+                cube.scale.set(0.5, 0.5, 0.5); // Make cubes smaller
+                this.scene.add(cube);
+                this.armorCubes.push(cube);
+            });
+        }
+        
         // Create floor using grid units
         const floorGeometry = new THREE.PlaneGeometry(mapData.width, mapData.height);
         const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x0066cc });
@@ -662,6 +658,13 @@ class Game {
 
     animate() {
         requestAnimationFrame(() => this.animate());
+        
+        // Rotate and bob armor cubes
+        const time = Date.now() * 0.001;
+        this.armorCubes.forEach(cube => {
+            cube.rotation.y = time;
+            cube.position.y = 0.5 + Math.sin(time * 2) * 0.1; // Floating animation
+        });
         
         // Only update movement if we have a map and controls are active
         if (this.map && (this.controls.isLocked || this.isMobile)) {

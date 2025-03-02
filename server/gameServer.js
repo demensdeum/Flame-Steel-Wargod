@@ -50,7 +50,7 @@ class GameServer {
         console.log(`Game server started on port ${this.port}`);
     }
 
-    startNewFight(generatorType = MapGeneratorType.ROOM) {
+    startNewFight(generatorType = MapGeneratorType.ARENA) {
         let generator;
         switch (generatorType) {
             case MapGeneratorType.CAVE:
@@ -170,6 +170,57 @@ class GameServer {
         this.broadcastGameState();
     }
 
+    checkArmorPickup(fighter) {
+        const map = this.arena.getMap();
+        if (!map.armorSpawns) return;
+
+        // Get fighter's grid position
+        const fighterGridX = Math.floor((fighter.position.x + (map.width * map.cellSize) / 2) / map.cellSize);
+        const fighterGridY = Math.floor((fighter.position.z + (map.height * map.cellSize) / 2) / map.cellSize);
+        
+        console.log('Checking armor pickup:', {
+            fighterWorld: fighter.position,
+            fighterGrid: { x: fighterGridX, y: fighterGridY },
+            armorSpawns: map.armorSpawns
+        });
+
+        // Check each armor spawn point
+        for (let i = 0; i < map.armorSpawns.length; i++) {
+            const spawn = map.armorSpawns[i];
+            
+            // Check if fighter is in same or adjacent cell
+            const dx = Math.abs(fighterGridX - spawn.x);
+            const dy = Math.abs(fighterGridY - spawn.y);
+            
+            console.log('Grid distance to armor:', {
+                spawn,
+                dx,
+                dy,
+                fighterGrid: { x: fighterGridX, y: fighterGridY }
+            });
+            
+            // If in same cell or adjacent cell
+            if (dx <= 1 && dy <= 1) {
+                // Add armor
+                fighter.armor = (fighter.armor || 0) + 20;
+                if (fighter.armor > 100) fighter.armor = 100;
+
+                // Remove this armor spawn
+                map.armorSpawns.splice(i, 1);
+                
+                // Notify all clients about armor pickup
+                this.broadcastEvent({
+                    type: 'armorPickup',
+                    fighterId: fighter.id,
+                    armorAmount: fighter.armor,
+                    remainingSpawns: map.armorSpawns
+                });
+                
+                break;
+            }
+        }
+    }
+
     handleMessage(connection, message) {
         try {
             const data = JSON.parse(message);
@@ -188,6 +239,7 @@ class GameServer {
             switch (data.type) {
                 case 'move':
                     fighter.setPosition(data.x, data.y, data.z);
+                    this.checkArmorPickup(fighter);
                     break;
                 case 'rotate':
                     fighter.setRotation(data.x, data.y, data.z, data.w);

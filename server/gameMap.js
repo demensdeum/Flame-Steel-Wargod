@@ -5,6 +5,7 @@ class GameMap {
         this.cellSize = 64;
         this.grid = Array(height).fill().map(() => Array(width).fill(0));
         this.spawnPoints = [];
+        this.armorSpawns = [];
     }
 
     setWall(x, y) {
@@ -87,7 +88,8 @@ class GameMap {
             cellSize: this.cellSize,
             grid: this.grid.map(row => [...row]),
             worldWidth: this.width * this.cellSize,
-            worldHeight: this.height * this.cellSize
+            worldHeight: this.height * this.cellSize,
+            armorSpawns: this.armorSpawns.map(spawn => ({ ...spawn })) // Send copy of armor spawns
         };
     }
 

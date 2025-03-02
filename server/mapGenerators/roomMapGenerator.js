@@ -47,6 +47,25 @@ class RoomMapGenerator {
         this._carveRooms(map);
         this._connectRooms(map);
 
+        // Add armor spawn points - one in each of the 4 largest rooms
+        const sortedRooms = [...this.rooms].sort((a, b) => (b.width * b.height) - (a.width * a.height));
+        map.armorSpawns = [];
+        
+        // Take up to 4 largest rooms
+        for (let i = 0; i < 4 && i < sortedRooms.length; i++) {
+            const room = sortedRooms[i];
+            const center = room.getCenter();
+            
+            // Offset slightly from center for variety
+            const offsetX = Math.floor(Math.random() * 3) - 1; // -1, 0, or 1
+            const offsetY = Math.floor(Math.random() * 3) - 1;
+            
+            map.armorSpawns.push({
+                x: center.x + offsetX,
+                y: center.y + offsetY
+            });
+        }
+
         return map;
     }
 

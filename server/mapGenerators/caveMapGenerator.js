@@ -21,6 +21,41 @@ class CaveMapGenerator {
         this._applyGridToMap(grid, map);
         this._ensureConnectivity(grid, map);
 
+        // Add armor spawn points
+        const openSpaces = [];
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                if (!grid[y][x]) { // If it's an empty space
+                    // Check if it's away from walls
+                    let isSafe = true;
+                    for (let dy = -1; dy <= 1; dy++) {
+                        for (let dx = -1; dx <= 1; dx++) {
+                            const nx = x + dx;
+                            const ny = y + dy;
+                            if (nx >= 0 && nx < this.width && ny >= 0 && ny < this.height) {
+                                if (grid[ny][nx] === 1) {
+                                    isSafe = false;
+                                    break;
+                                }
+                            }
+                        }
+                        if (!isSafe) break;
+                    }
+                    if (isSafe) {
+                        openSpaces.push({x, y});
+                    }
+                }
+            }
+        }
+
+        // Select 4 random spots for armor
+        map.armorSpawns = [];
+        for (let i = 0; i < 4 && openSpaces.length > 0; i++) {
+            const index = Math.floor(Math.random() * openSpaces.length);
+            map.armorSpawns.push(openSpaces[index]);
+            openSpaces.splice(index, 1);
+        }
+
         return map;
     }
 

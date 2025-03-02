@@ -11,6 +11,17 @@
             -webkit-user-select: none;
             user-select: none;
         }
+        
+        #version {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            color: #666;
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 100001;
+            pointer-events: none;
+        }
         canvas { display: block; }
         
         #touchControls {
@@ -54,6 +65,7 @@
         <div id="moveArea"></div>
         <div id="lookArea"></div>
     </div>
+    <div id="version"></div>
     <script type="importmap">
         {
             "imports": {
