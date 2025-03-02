@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+import CameraControls from './cameraControls.js';
 import GameMap from './gameMap.js';
 import HUD from './hud.js';
 import { config } from './config.js';
@@ -29,23 +29,8 @@ class Game {
     }
     constructor() {
 
-        this.moveForward = false;
-        this.moveBackward = false;
-        this.moveLeft = false;
-        this.moveRight = false;
-        this.velocity = new THREE.Vector3();
-        this.direction = new THREE.Vector3();
         this.playerId = null;
         this.prevTime = performance.now();
-        
-        // Touch controls state
-        this.isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-        this.moveStickActive = false;
-        this.lookStickActive = false;
-        this.moveStickStartPos = { x: 0, y: 0 };
-        this.lookStickStartPos = { x: 0, y: 0 };
-        this.moveStickOffset = { x: 0, y: 0 };
-        this.lookStickOffset = { x: 0, y: 0 };
         
         // Player stats
         this.health = 100;
@@ -78,20 +63,25 @@ class Game {
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(this.renderer.domElement);
 
-        this.controls = new PointerLockControls(this.camera, document.body);
         this.camera.position.y = 1.6; // Eye height
-
-        if (!this.isMobile) {
-            this.controls.addEventListener('lock', () => {
-                this.cover.hide();
-                this.hud.show();
-            });
-        }
-
+        
+        // Initialize camera controls
+        this.controls = new CameraControls(this.camera, document.body);
+        
+        // Setup control events
+        this.controls.addEventListener('lock', () => {
+            this.cover.hide();
+            this.hud.show();
+        });
+        
         this.controls.addEventListener('unlock', () => {
             this.cover.show();
             this.hud.hide();
         });
+        
+        if (this.isMobile) {
+            this.controls.setupTouchControls();
+        }
 
         this.fighters = new Map();
         this.walls = new Set();
@@ -102,14 +92,8 @@ class Game {
 
         window.addEventListener('resize', () => this.onWindowResize(), false);
         
-        if (this.isMobile) {
-            this.setupTouchControls();
-        } else {
-            document.addEventListener('keydown', (event) => this.onKeyDown(event));
-            document.addEventListener('keyup', (event) => this.onKeyUp(event));
-            document.addEventListener('mousedown', (event) => this.onMouseDown(event));
-            document.addEventListener('mousemove', (event) => this.onMouseMove(event));
-        }
+        document.addEventListener('mousedown', (event) => this.onMouseDown(event));
+        document.addEventListener('mousemove', (event) => this.onMouseMove(event));
     }
 
     setupLights() {
@@ -466,194 +450,21 @@ class Game {
     }
 
     updateMovement() {
-        // Allow movement for both locked controls and mobile
-        if (!this.controls.isLocked && !this.isMobile) return;
-
-        const time = performance.now();
-        const delta = (time - this.prevTime) / 1000;
-        const moveSpeed = 3.0;
-        
-        console.log('Update movement:', {
-            moveForward: this.moveForward,
-            moveBackward: this.moveBackward,
-            moveLeft: this.moveLeft,
-            moveRight: this.moveRight
-        });
-
-        // Get forward direction from quaternion
-        const forward = new THREE.Vector3(0, 0, -1);
-        forward.applyQuaternion(this.camera.quaternion);
-        forward.y = 0; // Keep movement horizontal
-        forward.normalize();
-
-        // Calculate right vector
-        const right = new THREE.Vector3(1, 0, 0);
-        right.applyQuaternion(this.camera.quaternion);
-        right.y = 0; // Keep movement horizontal
-        right.normalize();
-
-        let moveX = 0;
-        let moveZ = 0;
-
-        // Calculate desired movement
-        if (this.moveForward) {
-            moveX += forward.x * moveSpeed * delta;
-            moveZ += forward.z * moveSpeed * delta;
-        }
-        if (this.moveBackward) {
-            moveX -= forward.x * moveSpeed * delta;
-            moveZ -= forward.z * moveSpeed * delta;
-        }
-        if (this.moveLeft) {
-            moveX -= right.x * moveSpeed * delta;
-            moveZ -= right.z * moveSpeed * delta;
-        }
-        if (this.moveRight) {
-            moveX += right.x * moveSpeed * delta;
-            moveZ += right.z * moveSpeed * delta;
-        }
-
-        // Check X and Z movements separately
-        const futureX = this.camera.position.x + moveX;
-        const futureZ = this.camera.position.z + moveZ;
-
-        // Try X movement
-        if (this.canMoveInDirection(futureX, this.camera.position.z)) {
-            this.camera.position.x = futureX;
-        }
-
-        // Try Z movement
-        if (this.canMoveInDirection(this.camera.position.x, futureZ)) {
-            this.camera.position.z = futureZ;
-        }
+        // Get current position
+        const pos = this.camera.position;
         
         // Send position update to server
-        if (moveX !== 0 || moveZ !== 0) {
-            // Convert world coordinates to server coordinates
-            const serverX = (this.camera.position.x + this.map.width/2) * this.map.cellSize;
-            const serverZ = (this.camera.position.z + this.map.height/2) * this.map.cellSize;
-            
-            this.socket.send(JSON.stringify({
-                type: 'move',
-                x: serverX,
-                y: this.camera.position.y,
-                z: serverZ
-            }));
-        }
-
-        this.prevTime = performance.now();
-    }
-
-    setupTouchControls() {
-        const touchControls = document.getElementById('touchControls');
-        const moveArea = document.getElementById('moveArea');
-        const lookArea = document.getElementById('lookArea');
+        const serverX = (pos.x + this.map.width/2) * this.map.cellSize;
+        const serverZ = (pos.z + this.map.height/2) * this.map.cellSize;
         
-        // Make sure touch controls are visible
-        touchControls.style.display = 'block';
-        touchControls.style.zIndex = '100000';
-
-        // Movement touch handling
-        moveArea.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            const touch = e.touches[0];
-            this.moveStartPos = { x: touch.clientX, y: touch.clientY };
-            this.moveActive = true;
-            console.log('Touch start on move area');
-        });
-
-        moveArea.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            if (!this.moveActive) return;
-
-            const touch = e.touches[0];
-            const deltaX = touch.clientX - this.moveStartPos.x;
-            const deltaY = touch.clientY - this.moveStartPos.y;
-
-            // Reset all movement
-            this.moveForward = this.moveBackward = this.moveLeft = this.moveRight = false;
-
-            // Simple threshold-based movement
-            const threshold = 30; // pixels
-
-            // Vertical movement
-            if (deltaY < -threshold) {
-                this.moveForward = true;
-                console.log('Moving forward');
-            } else if (deltaY > threshold) {
-                this.moveBackward = true;
-                console.log('Moving backward');
-            }
-
-            // Horizontal movement
-            if (deltaX < -threshold) {
-                this.moveLeft = true;
-                console.log('Moving left');
-            } else if (deltaX > threshold) {
-                this.moveRight = true;
-                console.log('Moving right');
-            }
-        });
-
-        moveArea.addEventListener('touchend', () => {
-            this.moveActive = false;
-            this.moveForward = this.moveBackward = this.moveLeft = this.moveRight = false;
-            console.log('Touch end on move area');
-        });
-
-        // Look touch handling
-        lookArea.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            const touch = e.touches[0];
-            this.lookStartPos = { x: touch.clientX, y: touch.clientY };
-            this.lookActive = true;
-            this.lastDeltaX = 0;
-            this.lastDeltaY = 0;
-        });
-
-        lookArea.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            if (!this.lookActive) return;
-
-            const touch = e.touches[0];
-            
-            // Calculate rotation based on touch movement
-            const deltaX = (touch.clientX - this.lookStartPos.x) * 0.01;
-            const deltaY = (touch.clientY - this.lookStartPos.y) * 0.01;
-            
-            // Apply rotations with clamping
-            this.camera.rotation.order = 'YXZ'; // Important for FPS camera
-            this.camera.rotation.y -= deltaX;
-            
-            // Clamp vertical rotation
-            const newX = this.camera.rotation.x - deltaY;
-            this.camera.rotation.x = Math.max(-Math.PI/3, Math.min(Math.PI/3, newX));
-            
-            // Update start position
-            this.lookStartPos = { x: touch.clientX, y: touch.clientY };
-            
-            // Send rotation update
-            this.socket.send(JSON.stringify({
-                type: 'rotate',
-                x: this.camera.quaternion.x,
-                y: this.camera.quaternion.y,
-                z: this.camera.quaternion.z,
-                w: this.camera.quaternion.w
-            }));
-        });
-
-        lookArea.addEventListener('touchend', () => {
-            this.lookActive = false;
-        });
-
-        // Single tap to attack
-        lookArea.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) { // Only if it's a single touch
-                this.socket.send(JSON.stringify({
-                    type: 'attack'
-                }));
-            }
-        });
+        this.socket.send(JSON.stringify({
+            type: 'move',
+            x: serverX,
+            y: pos.y,
+            z: serverZ
+        }));
+        
+        this.prevTime = performance.now();
     }
 
     animate() {
@@ -666,8 +477,11 @@ class Game {
             cube.position.y = 0.5 + Math.sin(time * 2) * 0.1; // Floating animation
         });
         
-        // Only update movement if we have a map and controls are active
-        if (this.map && (this.controls.isLocked || this.isMobile)) {
+        // Update camera controls and movement if we have a map
+        if (this.map) {
+            // Update camera controls with collision check
+            this.controls.update((x, z) => this.canMoveTo(x, z));
+            // Update server with new position
             this.updateMovement();
         }
         
