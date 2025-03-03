@@ -28,6 +28,7 @@ class GameServer {
         this.viewers = new Set();
         this.arena = new Area();
         this.transport = new TransportClass(port);
+        this.armorRespawnTimers = new Map(); // Track armor respawn timers
     }
 
     start() {
@@ -50,7 +51,7 @@ class GameServer {
         console.log(`Game server started on port ${this.port}`);
     }
 
-    startNewFight(generatorType = MapGeneratorType.ARENA) {
+    startNewFight(generatorType = MapGeneratorType.ROOM) {
         console.log('Starting new fight, creating armor objects...');
         let generator;
         switch (generatorType) {
@@ -301,8 +302,34 @@ class GameServer {
 
                         // If fighter is in same grid cell as armor
                         if (fighterGridX === armorGridX && fighterGridZ === armorGridZ) {
+                            // Store position before removing
+                            const pos = armor.getPosition();
+                            const gridX = Math.floor(pos.x / this.arena.getMap().cellSize);
+                            const gridZ = Math.floor(pos.z / this.arena.getMap().cellSize);
+                            
                             // Remove armor from arena
                             this.arena.removeArmor(armor.getName());
+
+                            // Start respawn timer
+                            const respawnTime = Date.now() + 30000;
+                            this.armorRespawnTimers.set(`${gridX},${gridZ}`, respawnTime);
+                            
+                            // Schedule respawn in 30 seconds
+                            setTimeout(() => {
+                                // Create new armor at original position
+                                this.arena.getMap().addArmorObject(gridX, gridZ);
+                                this.armorRespawnTimers.delete(`${gridX},${gridZ}`);
+                                
+                                // Broadcast update to all clients
+                                this.broadcastEvent({
+                                    type: 'armorPickup',
+                                    armorObjects: this.arena.getArmorObjects().map(a => ({
+                                        id: a.getName(),
+                                        position: a.getPosition(),
+                                        defense: a.getDefense()
+                                    }))
+                                });
+                            }, 30000);
 
                             // Update fighter's armor
                             if (!fighter.armor) fighter.armor = 0;
@@ -448,8 +475,10 @@ class GameServer {
     broadcastGameState() {
         console.log('Broadcasting game state to', this.clients.size, 'clients');
         
-        // Check for inactive fighters (no updates in last 10 seconds)
+        // Get current time for both inactive fighters and armor timers
         const now = Date.now();
+        
+        // Check for inactive fighters (no updates in last 10 seconds)
         const inactiveFighters = Array.from(this.players).filter(fighter => 
             now - fighter.lastUpdateTime > 10000
         );
@@ -463,10 +492,21 @@ class GameServer {
         // Get map data first to ensure consistent state
         const mapData = this.arena.getMap().getMapData();
         
+        // Update armor respawn timers
+        const armorRespawnInfo = [];
+        for (const [pos, respawnTime] of this.armorRespawnTimers) {
+            const timeLeft = Math.ceil((respawnTime - now) / 1000);
+            if (timeLeft > 0) {
+                const [x, z] = pos.split(',').map(Number);
+                armorRespawnInfo.push({ x, z, timeLeft });
+            }
+        }
+        mapData.armorRespawnInfo = armorRespawnInfo;
         
         console.log('Map data for broadcast:', {
             numArmorObjects: mapData.armorObjects.length,
-            armorObjects: mapData.armorObjects
+            armorObjects: mapData.armorObjects,
+            armorRespawnInfo
         });
 
         const gameState = {

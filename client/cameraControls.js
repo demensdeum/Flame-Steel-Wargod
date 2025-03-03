@@ -130,7 +130,7 @@ export default class CameraControls {
         this.velocity.z = 0;
         
         this.direction.z = Number(this.moveForward) - Number(this.moveBackward);
-        this.direction.x = Number(this.moveRight) - Number(this.moveLeft);
+        this.direction.x = Number(this.moveLeft) - Number(this.moveRight); // Fix inverted left/right movement
         this.direction.normalize();
         
         if (this.moveForward || this.moveBackward) {

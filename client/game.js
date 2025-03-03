@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import CameraControls from './cameraControls.js';
 import GameMap from './gameMap.js';
 import HUD from './hud.js';
+import DebugMap from './debugMap.js';
 import { config } from './config.js';
 
 const CELL_SIZE = 64; // Grid cell size in pixels
@@ -54,17 +55,8 @@ class Game {
             }
         });
 
-        // Create debug map canvas
-        this.debugMapCanvas = document.createElement('canvas');
-        this.debugMapCanvas.style.position = 'fixed';
-        this.debugMapCanvas.style.top = '10px';
-        this.debugMapCanvas.style.right = '10px';
-        this.debugMapCanvas.style.width = '200px';
-        this.debugMapCanvas.style.height = '200px';
-        this.debugMapCanvas.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-        this.debugMapCanvas.style.border = '1px solid white';
-        this.debugMapCanvas.style.zIndex = '1000';
-        document.body.appendChild(this.debugMapCanvas);
+        // Create debug map
+        this.debugMap = new DebugMap();
 
         this.scene = new THREE.Scene();
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -337,7 +329,7 @@ class Game {
         const floorMaterial = new THREE.MeshStandardMaterial({ 
             color: 0x0066cc,
             transparent: true,
-            opacity: 0.5
+            opacity: 1.0
         });
         const floor = new THREE.Mesh(floorGeometry, floorMaterial);
         floor.rotation.x = -Math.PI / 2;
@@ -349,7 +341,7 @@ class Game {
         const ceilingMaterial = new THREE.MeshStandardMaterial({ 
             color: 0xffffff, // White
             transparent: true,
-            opacity: 0.5
+            opacity: 1.0
         });
         const ceiling = new THREE.Mesh(ceilingGeometry, ceilingMaterial);
         ceiling.rotation.x = Math.PI / 2;
@@ -372,7 +364,7 @@ class Game {
             color: 0xff0000,
             side: THREE.DoubleSide,
             transparent: true,
-            opacity: 0.5
+            opacity: 1.0
         });
         
         const instancedMesh = new THREE.InstancedMesh(wallGeometry, tempMaterial, wallCount);
@@ -417,7 +409,7 @@ class Game {
                     map: texture,
                     side: THREE.DoubleSide,
                     transparent: true,
-                    opacity: 0.5
+                    opacity: 1.0
                 });
 
                 // Update instanced mesh material
@@ -691,90 +683,12 @@ class Game {
     updateDebugMap() {
         if (!this.map) return;
         
-        const canvas = this.debugMapCanvas;
-        const ctx = canvas.getContext('2d');
-        const cellSize = 10; // Size of each grid cell in pixels
+        const data = {
+            map: this.map,
+            armor: this.armor
+        };
         
-        // Set canvas size to match grid
-        canvas.width = this.map.width * cellSize;
-        canvas.height = this.map.height * cellSize + 40; // Extra space for debug info
-        
-        // Clear canvas
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // Draw grid lines
-        ctx.strokeStyle = 'rgba(50, 50, 50, 0.5)';
-        for (let x = 0; x <= this.map.width; x++) {
-            ctx.beginPath();
-            ctx.moveTo(x * cellSize, 0);
-            ctx.lineTo(x * cellSize, this.map.height * cellSize);
-            ctx.stroke();
-        }
-        for (let y = 0; y <= this.map.height; y++) {
-            ctx.beginPath();
-            ctx.moveTo(0, y * cellSize);
-            ctx.lineTo(this.map.width * cellSize, y * cellSize);
-            ctx.stroke();
-        }
-        
-        // Draw walls
-        for (let y = 0; y < this.map.height; y++) {
-            for (let x = 0; x < this.map.width; x++) {
-                if (this.map.grid[y][x] === 1) {
-                    ctx.fillStyle = 'rgba(128, 128, 128, 0.5)';
-                    ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
-                }
-            }
-        }
-        
-        // Draw armor cubes
-        this.armorCubes.forEach(cube => {
-            const gridX = Math.floor(cube.userData.originalX / CELL_SIZE);
-            const gridZ = Math.floor(cube.userData.originalZ / CELL_SIZE);
-            
-            // Draw cube background
-            ctx.fillStyle = 'rgba(255, 0, 255, 0.3)';
-            ctx.fillRect(gridX * cellSize, gridZ * cellSize, cellSize, cellSize);
-            
-            // Draw cube border
-            ctx.strokeStyle = 'magenta';
-            ctx.strokeRect(gridX * cellSize, gridZ * cellSize, cellSize, cellSize);
-            
-            // Draw cube ID
-            ctx.fillStyle = 'white';
-            ctx.font = '8px monospace';
-            ctx.fillText(cube.userData.id.split('_')[1], gridX * cellSize + 2, gridZ * cellSize + 8);
-        });
-        
-        // Draw player position
-        const playerX = Math.floor((this.camera.position.x + this.map.width/2) * CELL_SIZE / CELL_SIZE);
-        const playerZ = Math.floor((this.camera.position.z + this.map.height/2) * CELL_SIZE / CELL_SIZE);
-        
-        // Draw player circle
-        ctx.fillStyle = 'lime';
-        ctx.beginPath();
-        ctx.arc(playerX * cellSize + cellSize/2, playerZ * cellSize + cellSize/2, cellSize/3, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Draw player direction
-        const angle = Math.atan2(this.camera.rotation.x, this.camera.rotation.z);
-        ctx.beginPath();
-        ctx.moveTo(playerX * cellSize + cellSize/2, playerZ * cellSize + cellSize/2);
-        ctx.lineTo(
-            playerX * cellSize + cellSize/2 + Math.cos(angle) * cellSize,
-            playerZ * cellSize + cellSize/2 + Math.sin(angle) * cellSize
-        );
-        ctx.strokeStyle = 'lime';
-        ctx.stroke();
-        
-        // Draw debug info
-        const mapHeight = this.map.height * cellSize;
-        ctx.fillStyle = 'white';
-        ctx.font = '10px monospace';
-        ctx.fillText(`Grid: ${playerX},${playerZ}`, 5, mapHeight + 12);
-        ctx.fillText(`Scene: ${this.camera.position.x.toFixed(1)},${this.camera.position.z.toFixed(1)}`, 5, mapHeight + 24);
-        ctx.fillText(`Armor: ${this.armor}`, 5, mapHeight + 36);
+        this.debugMap.update(data, this.camera, this.fighters, this.walls, this.armorCubes);
     }
 
     animate() {
